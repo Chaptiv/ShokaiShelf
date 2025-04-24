@@ -102,6 +102,16 @@ Adjust `--add-data` flags if you include resources (e.g. `translations/`).
 
 ---
 
+## Update Rollout
+
+- **Major Releases** (e.g. v0.0.5 and above)  
+  Available via both GitHub Releases and the built-in auto-updater.
+
+- **Minor Updates, Desings and Hotfixes** (e.g. v0.0.4a, v0.0.4b)  
+  Delivered exclusively through the auto-updater for seamless patching.
+
+  _ShokaiShelf v0.0.4 or later is required to receive any updates via the auto-updater._
+
 ## License
 
 ShokaiShelf is released under the **MIT License**. See [LICENSE](LICENSE) for details. (In the Making)
