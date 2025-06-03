@@ -1,6 +1,11 @@
 import tkinter as tk
 from api_handler import load_image_from_url, search_anime_anilist
-from database_handler import get_watch_list, get_buy_list, add_anime_to_watch_list, add_anime_to_buy_list, remove_anime_from_list
+from database_handler import (
+    get_watch_list,
+    get_buy_list,
+    add_anime_to_watch_list,
+    add_anime_to_buy_list,
+)
 import re
 
 # Function to format the description by removing HTML tags and adding line breaks
@@ -135,10 +140,28 @@ def search_anime(title, main_frame, conn):
         button_frame = tk.Frame(main_frame)
         button_frame.pack(pady=20)
 
-        watch_button = tk.Button(button_frame, text="Add to Watch List", command=lambda: add_anime_to_watch_list(conn, anime_title, cover_url))
+        def add_to_watch():
+            try:
+                add_anime_to_watch_list(conn, anime_title, cover_url)
+                tk.messagebox.showinfo("Success", f"'{anime_title}' added to Watch List")
+            except ValueError:
+                tk.messagebox.showinfo("Info", f"'{anime_title}' is already in Watch List")
+            except Exception as e:
+                tk.messagebox.showerror("Error", str(e))
+
+        def add_to_buy():
+            try:
+                add_anime_to_buy_list(conn, anime_title, cover_url)
+                tk.messagebox.showinfo("Success", f"'{anime_title}' added to Buy List")
+            except ValueError:
+                tk.messagebox.showinfo("Info", f"'{anime_title}' is already in Buy List")
+            except Exception as e:
+                tk.messagebox.showerror("Error", str(e))
+
+        watch_button = tk.Button(button_frame, text="Add to Watch List", command=add_to_watch)
         watch_button.pack(side=tk.LEFT, padx=10)
 
-        buy_button = tk.Button(button_frame, text="Add to Buy List", command=lambda: add_anime_to_buy_list(conn, anime_title, cover_url))
+        buy_button = tk.Button(button_frame, text="Add to Buy List", command=add_to_buy)
         buy_button.pack(side=tk.LEFT, padx=10)
 
         # Add button to go back to homepage
