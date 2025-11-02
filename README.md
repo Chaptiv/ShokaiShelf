@@ -1,168 +1,167 @@
 # ShokaiShelf
 
-Ein schlanker AniList-Client mit Hauseigener Shingen-UI und Empfehlungs-Engine als **Electron + React (Vite)** Desktop-App.
+A lightweight AniList client with an in-house Shingen UI and recommendation engine as an **Electron + React (Vite)** desktop app.
 
-## Inhalt
+## Table of Contents
 
-* [Funktionen](#funktionen)
-* [Warum ShokaiShelf?](#warum-shokaishelf)
-* [Architektur](#architektur)
-* [AnimeNetRec V2 (Empfehlungen)](#animenetrecv2-empfehlungen)
-* [Sicherheit & Datenschutz](#sicherheit--datenschutz)
+* [Features](#features)
+* [Why ShokaiShelf?](#why-shokaishelf)
+* [Architecture](#architecture)
+* [AnimeNetRec V2 (Recommendations)](#animenetrec-v2-recommendations)
+* [Security & Privacy](#security--privacy)
 * [Installation](#installation)
-* [Entwicklung](#entwicklung)
+* [Development](#development)
 * [Builds](#builds)
-* [Konfiguration](#konfiguration)
-* [Bekannte Limitierungen / Roadmap](#bekannte-limitierungen--roadmap)
-* [Lizenz](#lizenz)
+* [Configuration](#configuration)
+* [Known Limitations / Roadmap](#known-limitations--roadmap)
+* [License](#license)
 
 ---
 
-## Funktionen
+## Features
 
-* AniList-Login (OAuth) mit lokalem Callback (127.0.0.1:43210).
-* Bibliothek: „Watching / Completed / PTW“, Suchen, Trending, Nächste Ausstrahlungen.
-* **AnimeNetRecV2**: personalisierte Empfehlungen – **lokal** berechnet.
-* Caching für Viewer, Trending und Suche.
-* Minimalistische, tastaturfreundliche Hauseigene Shingen-UI (seitliche Rail + Kartenansichten).
-
----
-
-## Warum ShokaiShelf?
-
-ShokaiShelf versucht **praktisch** zu sein: keine Cloud-Abhängigkeit, keine Telemetrie, kein Zwang zu Accounts außerhalb von AniList. Empfehlungen werden **nachvollziehbar lokal** berechnet (siehe unten), Ereignisse bleiben auf deinem Gerät.
+* AniList login (OAuth) with local callback (`127.0.0.1:43210`).
+* Library: “Watching / Completed / PTW”, search, trending, next airing.
+* **AnimeNetRec V2**: personalized recommendations – computed **locally**.
+* Caching for viewer, trending and search.
+* Minimal, keyboard-friendly in-house **Shingen UI** (sidebar rail + card layout).
 
 ---
 
-## Architektur
+## Why ShokaiShelf?
 
-```
+ShokaiShelf tries to be **practical**: no cloud dependency, no telemetry, no account requirement beyond AniList. Recommendations are calculated **locally and transparently** (see below), events stay on your device.
+
+---
+
+## Architecture
+
+```text
 Electron (Main)  ←IPC→  Renderer (React/Vite)
       │                           │
-      └─ electron-store           └─ lokale UI-Zustände (localStorage)
+      └─ electron-store           └─ local UI state (localStorage)
                 │
-          OAuth Callback (HTTP 43210)
+          OAuth callback (HTTP 43210)
                 │
              AniList API
 ```
 
-* **Main Process**: Fenster, OAuth-Flow, IPC-Handler, Persistenz mit `electron-store`.
-* **Preload**: `contextBridge` – nur whiteliste Funktionen sind im Renderer verfügbar.
-* **Renderer**: React-App (Vite), ruft IPC-APIs auf, rendert UI.
+* **Main process**: window, OAuth flow, IPC handlers, persistence via `electron-store`.
+* **Preload**: `contextBridge` – only whitelisted functions are exposed to the renderer.
+* **Renderer**: React app (Vite), calls IPC APIs, renders UI.
 
-### Wichtige Dateien
+### Important files
 
-```
+```text
 electron/
-  main.js        # Electron Main (ESM), IPC, OAuth-Server
-  preload.cjs    # Sicheres Bridge-API (window.shokai.*)
+  main.js        # Electron main (ESM), IPC, OAuth server
+  preload.cjs    # secure bridge API (window.shokai.*)
 src/
-  api/anilist.ts # GraphQL-Wrapper + Caching
+  api/anilist.ts # GraphQL wrapper + caching
   pages/         # Dashboard, Library, Search, Settings
   logic/
-    netrecV2.ts  # AnimeNetRec V2 (ML-basiert, lokal)
-    netrec.ts    # Alternative (graph-basiert)
-  shingen/       # UI-Komponenten (Sidebar, Styles)
+    netrecV2.ts  # AnimeNetRec V2 (ML-based, local)
+    netrec.ts    # alternative (graph-based)
+  shingen/       # UI components (sidebar, styles)
 ```
 
 ---
 
-## AnimeNetRecV2 (Empfehlungen)
+## AnimeNetRec V2 (Recommendations)
 
-AnimeNetRecV2 ist eine hauseigene Empfehlungsengine, die Persönliche Anime-Recommendations auf Netflix Niveau vorschlagen soll.
+AnimeNetRec V2 is an in-house recommendation engine that aims to suggest personal anime recommendations on a Netflix-like level.
 
-**Ziel:** Empfehlungen, die mit der Zeit „persönlicher“ werden – **ohne** externe Dienste.
+**Goal:** recommendations that get “more personal” over time – **without** external services.
 
-### Datenbasis
+### Data basis
 
-* Dein AniList-Profil (Listenstatus, Scores, PTW).
-* Ein lokaler „Katalog“ (aus vorhandenen Media-Daten zusammengebaut).
-* **Nutzungsereignisse (Events)**: Was wurde angezeigt, angeklickt, verborgen, zur Liste hinzugefügt usw.
-  → werden lokal in `electron-store` gehalten (`rec.events`, max. 500).
+* Your AniList profile (list status, scores, PTW).
+* A local “catalog” (built from available media data).
+* **Usage events**: what was shown, clicked, hidden, added to list, etc.
+  → stored locally in `electron-store` (`rec.events`, max. 500).
 
-### Modell
+### Model
 
-* **Kleines lineares Modell** (Logistic Regression light) mit Feature-Vektor (10 Dimensionen):
+* **Small linear model** (light logistic regression) with a 10-dim feature vector:
 
-  * Bias, Popularität/Baseline
-  * PTW-Flag, Long-Runner-Flag
-  * „Sequel ohne Prequel“-Flag
-  * eigener Score (normiert)
-  * Zeit-/Recency-Faktor
-  * Tag-/Studio-Anzahl (leicht normalisiert)
-  * Veröffentlichungsjahr (normiert)
-* **Online-Learning**: Bei **positiven** Events (click, add_to_ptw, play_start) werden Gewichte verstärkt, bei **negativen** (hide) reduziert.
-* **Impressions**: jede gezeigte Empfehlung wird als „impression“ gespeichert; viele Impressions ohne Interaktion senken das Item.
+  * bias, popularity/baseline
+  * PTW flag, long-runner flag
+  * “sequel without prequel” flag
+  * own score (normalized)
+  * time/recency factor
+  * tag/studio count (lightly normalized)
+  * release year (normalized)
+* **Online learning**: for **positive** events (click, add_to_ptw, play_start) weights are increased, for **negative** (hide) they are reduced.
+* **Impressions**: every shown recommendation is stored as an “impression”; many impressions without interaction lower that item.
 
-### Ablauf (vereinfacht)
+### Flow (simplified)
 
-1. Lade Events (`rec:loadEvents`) + existierendes Modell (`rec:getModel`).
-2. Aktualisiere Modell schrittweise pro Event (Gradientenupdate).
-3. Berechne Score je Kandidat:
+1. Load events (`rec:loadEvents`) + existing model (`rec:getModel`).
+2. Update model step-by-step per event (gradient update).
+3. Score each candidate:
 
-   * Baseline × (1 + Modell-Affinität)
-   * * PTW-Boost
-   * − Penalty für sehr lange Serien (ohne PTW)
-   * − Penalty für „Sequel ohne gesehenes Prequel“
-   * − Dämpfung bei vielen Impressions ohne Interaktion
-4. Sortiere, nimm Top N (z. B. 12).
-5. Schreibe Impressions (`rec:insertEvent`) + speichere Modell (`rec:setModel`).
+   * baseline × (1 + model affinity)
+   * * PTW boost
+   * − penalty for very long shows (without PTW)
+   * − penalty for “sequel without seen prequel”
+   * − damping for many impressions without interaction
+4. Sort, take top N (e.g. 12).
+5. Write impressions (`rec:insertEvent`) + save model (`rec:setModel`).
 
-**Wichtig:** Alles passiert **lokal**.
-Keine Empfehlungssignale verlassen dein Gerät.
+**Important:** everything happens **locally**.
+No recommendation signals leave your device.
 
 ---
 
-## Sicherheit & Datenschutz
+## Security & Privacy
 
-* **Renderer** hat **keinen** Node-Zugriff (contextIsolation an).
-* Zugriff nur über `window.shokai.*` (Preload-Bridge).
-* Tokens & Modelle liegen lokal in `electron-store`.
-* Keine Telemetrie, keine externen Calls außer AniList GraphQL/OAuth.
+* **Renderer** has **no** Node access (`contextIsolation` enabled).
+* Access only via `window.shokai.*` (preload bridge).
+* Tokens & models are stored locally in `electron-store`.
+* No telemetry, no external calls except AniList GraphQL/OAuth.
 
 ---
 
 ## Installation
 
-Voraussetzungen:
+Requirements:
 
-**Einfacher Weg:**
-Nutze die bereitgestellten Builds für das jeweilige Betriebssystem
+**Easy way:**
+Use the provided builds for your OS.
 
+**DEV / build yourself:**
 
-**DEV-Builds oder selber bauen:**
-
-* Node.js ≥ 18 (empfohlen 20)
-* npm oder pnpm
-* Windows, macOS (Intel/ARM) oder Linux
+* Node.js ≥ 18 (20 recommended)
+* npm or pnpm
+* Windows, macOS (Intel/ARM) or Linux
 
 ```bash
-# Klonen
+# clone
 git clone https://github.com/chaptiv/ShokaiShelf.git
 cd ShokaiShelf
 
-# Abhängigkeiten
+# install deps
 npm install
 ```
 
 ---
 
-## Entwicklung
+## Development
 
 **Renderer dev + Electron:**
 
 ```bash
 # Terminal A – Vite dev server
 npm run dev:renderer
-# (typisch startet auf http://localhost:5173)
+# (typically starts on http://localhost:5173)
 
-# Terminal B – Electron im Dev
+# Terminal B – Electron dev
 npm start
 ```
 
-> Hinweis: Die App hat einen Fallback – wenn der Dev-Server nicht läuft, lädt sie `dist/index.html`.
+> Note: the app has a fallback – if the dev server isn’t running, it will load `dist/index.html`.
 
-**Renderer Build:**
+**Renderer build:**
 
 ```bash
 npm run build:renderer
@@ -176,11 +175,11 @@ npm run build:renderer
 
 ```bash
 npm run build
-# führt: vite build && electron-builder
+# runs: vite build && electron-builder
 # Output: release/<version>/ShokaiShelf-Windows-<version>-Setup.exe
 ```
 
-### macOS (unsigniert zum Testen)
+### macOS (unsigned for testing)
 
 In `electron-builder.json5`:
 
@@ -190,12 +189,12 @@ In `electron-builder.json5`:
 }
 ```
 
-Dann:
+Then:
 
 ```bash
 npm run build
 # Output: release/<version>/ShokaiShelf-Mac-<version>.dmg
-# Öffnen: Rechtsklick → Öffnen (Gatekeeper)
+# Open: right click → Open (Gatekeeper)
 ```
 
 ### Linux (AppImage)
@@ -206,59 +205,60 @@ npx electron-builder --linux AppImage
 
 ---
 
-## Konfiguration
+## Configuration
 
-Beim ersten Start fragt die App nach:
+On first start the app asks for:
 
 * **AniList Client ID / Secret**
-* **Redirect URI** (Standard: `http://127.0.0.1:43210/callback`)
+* **Redirect URI** (default: `http://127.0.0.1:43210/callback`)
 
-Im AniList Konto unter Settings -> Developer eine neue App Hinzufügen. Dann die Redirect URL `http://127.0.0.1:43210/callback` angeben. Dann auf Save und die Client-ID und Secret in ShokaiShelf angeben.
-Danach über den Knopf "Neu Starten" das Programm aktualisieren, auf "Bei AniList anmelden" klicken, und Fertig!
+In your AniList account go to *Settings → Developer*, create a new app, set redirect URL to `http://127.0.0.1:43210/callback`. Then click save and enter the Client ID and Secret in ShokaiShelf.
+After that click the “Restart” button to refresh the app, then click “Log in with AniList”, and you’re done.
 
-Die Werte werden lokal gespeichert.
-
----
-
-## Bekannte Limitierungen / Roadmap
-
-* **Kein Token-Refresh**: Access-Token wird noch nicht automatisch erneuert.
-* **Tests**: Unit/Integration/E2E sind geplant (Vitest/Playwright).
-* **AnimeNetRec V1 (Graph)**: optionaler Modus – noch nicht überall in der UI verdrahtet.
-* **Große Listen**: Virtuelle Listenansicht (react-window) wird vorbereitet.
-* **Auto-Update**: electron-updater nicht aktiviert.
-
-
-## Bekannte Bugs
-
-* **Fehlerhafte Anmdeldung erfolgreich Seite**: Derzeit wird bei erstanmeldung ein falscher "Login Erfolgreich" Bildschirm angezeigt.
-* **Search zeigt keine Empfehlungen an**: Search nutzt derzeit noch den alten AnimeNetRec V1. Eine Migration auf V2 läuft bereits.
-* **Dashboard zeigt im Normalen Fenstermodus Animes komisch an**: Dies kann derzeit damit behoben werden, das Fenster auf Bildschirmgroße zu machen.
-* **Bannerbild wird nicht geladen**: In seltenen Fällen kann das Bannerbild nicht geladen werden. Wenn möglich, zieht ShokaiShelf ein Alternatives Bild, was aber kein Banner ist.
+Values are stored locally.
 
 ---
 
-## Lizenz
+## Known Limitations / Roadmap
+
+* **No token refresh yet**: access token is not automatically renewed.
+* **Tests**: unit/integration/E2E are planned (Vitest/Playwright).
+* **AnimeNetRec V1 (graph)**: optional mode – not yet wired in all UI parts.
+* **Large lists**: virtualized list view (react-window) planned.
+* **Auto-update**: electron-updater not enabled.
+
+---
+
+## Known Bugs
+
+* **Wrong “login successful” screen**: currently a wrong success screen is shown on first login.
+* **Search shows no recommendations**: search still uses the old AnimeNetRec V1. Migration to V2 is in progress.
+* **Dashboard layout in normal window mode**: sometimes cards look odd in non-maximized mode; maximizing the window fixes it for now.
+* **Banner image not loaded**: in rare cases the banner image cannot be fetched. If possible, ShokaiShelf falls back to another image, but it won’t be a real banner.
+
+---
+
+## License
 
 ShokaiShelf – Source-Available License
 Copyright (c) 2025 Chaptiv
 
-1. Du darfst den Quellcode lesen und lokal für dich ausführen.
-2. Du darfst keine abgeleiteten Werke veröffentlichen, die im Wesentlichen auf diesem Code basieren
-   (z.B. gleicher Code mit anderem Namen/Theme/UI).
-3. Du darfst den Code nicht verkaufen oder im Rahmen eines kommerziellen Produkts weitergeben.
-4. Du darfst das Branding, den Namen "ShokaiShelf" und die Darstellung von AnimeNetRec V2 nicht
-   ohne vorherige schriftliche Erlaubnis verwenden.
-5. Verteilung erfolgt primär über vom Autor bereitgestellte Builds (exe/dmg/app). Eigene Builds
-   dürfen nicht öffentlich verteilt werden.
-6. Keine Garantie, keine Haftung.
+1. You may read the source code and run it locally for yourself.
+2. You may **not** publish derivative works that are essentially based on this code
+   (e.g. same code with different name/theme/UI).
+3. You may **not** sell the code or redistribute it as part of a commercial product.
+4. You may **not** use the branding, the name “ShokaiShelf”, or the presentation of AnimeNetRec V2
+   without prior written permission.
+5. Distribution is primarily via the official builds provided by the author (exe/dmg/app).
+   Self-built versions must **not** be publicly distributed.
+6. No warranty, no liability.
 
-Wenn du den Code nutzen willst (Fork, Port, Integration): bitte vorher anfragen.
+If you want to use the code (fork, port, integration): please ask first.
 
-AniList ist eine separate Plattform – halte dich an deren API-Richtlinien.
+AniList is a separate platform – please follow their API rules.
 
 ---
 
-### Dank & Hinweise
+### Thanks & Notes
 
-ShokaiShelf ist ein Hobbyprojekt. Beiträge (Issues/PRs) sind willkommen.
+ShokaiShelf is a hobby project. Contributions (issues/PRs) are welcome.
