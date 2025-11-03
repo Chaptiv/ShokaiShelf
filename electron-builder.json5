@@ -1,0 +1,53 @@
+// electron-builder.json5 – cleaned version (only keeps app icon)
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+
+  "appId": "com.shokaishelf.app",
+  "productName": "ShokaiShelf",
+  "asar": true,
+  "copyright": "© 2025 Maximilian Erb",
+
+  "directories": {
+    "output": "release/${version}"
+  },
+
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json"
+  ],
+
+  "win": {
+    "icon": "build/icons/icon.ico",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "artifactName": "ShokaiShelf-Installer-${version}.${ext}"
+  },
+
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": false,
+    "deleteAppDataOnUninstall": false,
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "shortcutName": "ShokaiShelf"
+  },
+
+  "mac": {
+    "category": "public.app-category.entertainment",
+    "target": ["dmg"],
+    "icon": "build/icons/icon.png",
+    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+  },
+
+  "linux": {
+    "target": ["AppImage"],
+    "icon": "build/icons/",
+    "artifactName": null
+  }
+}
