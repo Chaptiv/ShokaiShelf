@@ -1,0 +1,73 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; background: #0a0e14; color: #fff; font-family: Inter, Segoe UI, system-ui, sans-serif; }
+
+.sh-glass { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.sh-btn { height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.06); color: #fff; font-weight: 800; cursor: pointer; }
+.sh-btn:hover { outline: 1px solid #00d4ff; }
+.sh-btn.primary { background: linear-gradient(135deg, #00d4ff, #6c5ce7); border: 0; }
+
+.sh-scroll { overflow: auto; }
+.sh-section { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 12px; }
+.sh-h1 { font-size: 24px; font-weight: 900; margin: 0; }
+.sh-muted { color: #a4b1cd; }
+.sh-grid { display: grid; gap: 16px; }
+.sh-grid-6 { grid-template-columns: repeat(6, 1fr); }
+.sh-grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+/* ─── Sidebar (clean) ─────────────────────────────────────────────── */
+.sidebar {
+  position: fixed; inset: 0 auto 0 0;
+  width: 260px; background: #0b1118;
+  border-right: 1px solid rgba(255,255,255,.06);
+  display: grid; grid-template-rows: auto 1fr;
+  padding: 10px;
+}
+
+.sb-user { position: relative; padding: 8px; }
+.sb-user-btn {
+  width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 10px;
+  align-items: center; background: transparent; border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px; padding: 8px; cursor: pointer; color: #dbe4ff;
+}
+.sb-user-btn:hover { background: rgba(255,255,255,.04); }
+.sb-avatar { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,.15); }
+.sb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.sb-avatar-fallback { width: 100%; height: 100%; background: rgba(255,255,255,.08); }
+.sb-user-meta { min-width: 0; }
+.sb-user-name { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-user-sub { font-size: 11px; opacity: .7; }
+.sb-caret { opacity: .7; transition: transform .15s; }
+.sb-caret.open { transform: rotate(180deg); }
+
+.sb-menu {
+  position: absolute; left: 8px; right: 8px; top: calc(100% + 6px);
+  background: #0f1722; border: 1px solid rgba(255,255,255,.10); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35); padding: 6px; z-index: 1000;
+  display: grid; gap: 4px;
+}
+.sb-menu > button {
+  width: 100%; background: transparent; color: #dbe4ff;
+  border: 1px solid transparent; border-radius: 8px; padding: 8px 10px; text-align: left;
+}
+.sb-menu > button:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.10); }
+.sb-menu > button.danger:hover { background: rgba(255, 77, 77, .15); border-color: rgba(255, 77, 77, .4); }
+
+.sb-nav { padding: 8px; display: grid; gap: 6px; }
+.sb-link {
+  display: block; padding: 10px 12px; border-radius: 10px; color: #dbe4ff; text-decoration: none;
+  border: 1px solid transparent; background: transparent; font-weight: 700;
+}
+.sb-link:hover { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.06); }
+.sb-link.active {
+  background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12);
+  box-shadow: inset 3px 0 0 #00d4ff;
+}
+
+/* Layout-Content neben der Sidebar */
+.app-shell { display: grid; grid-template-columns: 260px 1fr; }
+.app-main { min-height: 100vh; }
+@media (max-width: 900px) {
+  .sidebar { position: fixed; transform: translateX(0); }
+  .app-shell { grid-template-columns: 0 1fr; } /* ggf. mobile handling später */
+}
