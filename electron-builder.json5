@@ -1,3 +1,4 @@
+// electron-builder.json5 – cleaned version (only keeps app icon)
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
 
@@ -16,11 +17,6 @@
     "package.json"
   ],
 
-  // WICHTIG: Preload muss unpacked sein!
-  "asarUnpack": [
-    "electron/preload.cjs"
-  ],
-
   "win": {
     "icon": "build/icons/icon.ico",
     "target": [
@@ -29,8 +25,7 @@
         "arch": ["x64"]
       }
     ],
-    "artifactName": "ShokaiShelf-Setup-${version}.${ext}",
-    "publisherName": "Maximilian Erb"
+    "artifactName": "ShokaiShelf-Installer-${version}.${ext}"
   },
 
   "nsis": {
@@ -40,61 +35,24 @@
     "deleteAppDataOnUninstall": false,
     "createDesktopShortcut": "always",
     "createStartMenuShortcut": true,
-    "shortcutName": "ShokaiShelf",
-    "installerIcon": "build/icons/icon.ico",
-    "uninstallerIcon": "build/icons/icon.ico"
+    "shortcutName": "ShokaiShelf"
   },
 
   "mac": {
     "category": "public.app-category.entertainment",
-    "target": [
-      {
-        "target": "dmg",
-        "arch": ["x64", "arm64"]
-      },
-      {
-        "target": "zip",
-        "arch": ["x64", "arm64"]
-      }
-    ],
-    "icon": "build/icons/icon.icns",
-    "hardenedRuntime": true,
-    "gatekeeperAssess": false,
-    "entitlements": "build/entitlements.mac.plist",
-    "entitlementsInherit": "build/entitlements.mac.plist",
-    "artifactName": "ShokaiShelf-Mac-${version}-${arch}.${ext}"
-  },
-
-  "dmg": {
-    "title": "ShokaiShelf ${version}",
-    "window": {
-      "width": 540,
-      "height": 380
-    },
-    "contents": [
-      {
-        "x": 144,
-        "y": 200,
-        "type": "file"
-      },
-      {
-        "x": 396,
-        "y": 200,
-        "type": "link",
-        "path": "/Applications"
-      }
-    ]
+    "target": ["dmg", "zip"],
+    "icon": "build/icons/icon.png",
+    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
   },
 
   "linux": {
-    "target": ["AppImage", "deb"],
+    "target": ["AppImage"],
     "icon": "build/icons/",
-    "category": "Video",
-    "artifactName": "ShokaiShelf-Linux-${version}.${ext}"
+    "artifactName": null
   },
 
   "publish": {
     "provider": "generic",
-    "url": "https://updates.shokaishelf.com"
+    "url": "https://update.shokaishelf.com"
   }
 }

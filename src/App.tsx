@@ -1,11 +1,25 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import { SettingsProvider } from "@state/SettingsContext";
 import Sidebar from "@shingen/Sidebar";
-import Dashboard from "@pages/Dashboard";
-import Search from "@pages/Search";
-import Library from "@pages/Library";
+import Dashboard from "@pages/Dashboard_dream"; // 🎨 Dream Version
+// Feed.tsx entfernt - Social_dream.tsx wird stattdessen verwendet
+import Search from "@pages/Search_dream"; // 🎨 Dream Version
+import Library from "@pages/Library_dream"; // 🎨 Dream Version
+import Social from "@pages/Social_dream"; // 🎨 Dream Version
 import Settings from "@pages/Settings";
+import Echo from "@pages/Echo";
+import Achievements from "@pages/Achievements";
+import ScrobblerToast from "@components/ScrobblerToast";
+import UpdateBanner from "@components/UpdateBanner";
+import type { ScrobblerCandidate } from "../electron/scrobbler";
+import * as anilistAPI from "@api/anilist";
+import * as netrecV3 from "@logic/netrecV3";
+import { findBestMatch } from "@logic/scrobble-matcher";
+import { checkAndMigrate, getMigrationStatus } from "@logic/netrecDream/migration";
+import { createDreamEngine } from "@logic/netrecDream";
+import "./i18n";
 
 async function safeStatus(): Promise<any> {
   // 4s Timeout, damit App nicht hängt
@@ -19,7 +33,7 @@ async function safeStatus(): Promise<any> {
   return Promise.race([window.shokai.status(), t]);
 }
 
-type PageKey = "home" | "search" | "library" | "settings";
+type PageKey = "home" | "feed" | "search" | "library" | "social" | "settings" | "echo" | "achievements";
 
 declare global {
   interface Window {
@@ -36,46 +50,82 @@ declare global {
   }
 }
 
+/* ───────────────── Onboarding Icons ───────────────── */
+const OnboardingIcons = {
+  welcome: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "100%", height: "100%" }}>
+      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="rgba(0,212,255,0.2)" stroke="#00d4ff" />
+    </svg>
+  ),
+  navigate: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "100%", height: "100%" }}>
+      <polygon points="3 11 22 2 13 21 11 13 3 11" fill="rgba(0,212,255,0.15)" stroke="#00d4ff" />
+    </svg>
+  ),
+  brain: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "100%", height: "100%" }}>
+      <path d="M12 2C9.5 2 7.5 4 7.5 6.5C7.5 7.5 7.8 8.4 8.3 9.1C6.4 9.6 5 11.3 5 13.5C5 15.5 6.2 17.1 7.8 17.7C7.3 18.3 7 19.1 7 20C7 21.7 8.3 23 10 23" stroke="#00d4ff" />
+      <path d="M12 2C14.5 2 16.5 4 16.5 6.5C16.5 7.5 16.2 8.4 15.7 9.1C17.6 9.6 19 11.3 19 13.5C19 15.5 17.8 17.1 16.2 17.7C16.7 18.3 17 19.1 17 20C17 21.7 15.7 23 14 23" stroke="#00d4ff" />
+      <path d="M12 8V23" stroke="#00d4ff" />
+    </svg>
+  ),
+  box: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "100%", height: "100%" }}>
+      <path d="M21 8V21H3V8" fill="rgba(0,212,255,0.1)" stroke="#00d4ff" />
+      <path d="M23 3H1V8H23V3Z" fill="rgba(0,212,255,0.2)" stroke="#00d4ff" />
+      <path d="M10 12H14" stroke="#00d4ff" />
+    </svg>
+  ),
+  share: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: "100%", height: "100%" }}>
+      <circle cx="18" cy="5" r="3" fill="rgba(0,212,255,0.2)" stroke="#00d4ff" />
+      <circle cx="6" cy="12" r="3" fill="rgba(0,212,255,0.2)" stroke="#00d4ff" />
+      <circle cx="18" cy="19" r="3" fill="rgba(0,212,255,0.2)" stroke="#00d4ff" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="#00d4ff" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="#00d4ff" />
+    </svg>
+  ),
+};
+
 /* ───────────────── Onboarding ───────────────── */
 function Onboarding({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const steps = [
     {
-      title: "Willkommen bei ShokaiShelf ✨",
-      subtitle: "Danke, dass du ShokaiShelf nutzt.",
-      body: "Lokaler Anime-Client, AniList-Anbindung, modernes UI.",
-      icon: "🟦",
-      badge: "Setup abgeschlossen",
+      title: t('onboarding.welcome'),
+      subtitle: t('onboarding.thankYou'),
+      body: t('onboarding.intro'),
+      icon: OnboardingIcons.welcome,
+      badge: t('onboarding.setupComplete'),
     },
     {
-      title: "Wie es funktioniert 🗂️",
-      subtitle: "Dashboard, Library, Suche, Einstellungen.",
-      body: "• Dashboard = Überblick\n• Library = deine Listen\n• Suche = neue Titel\n• Einstellungen = Login & Keys",
-      icon: "🧭",
-      badge: "Navigation",
+      title: t('onboarding.howItWorks'),
+      subtitle: t('onboarding.navigationDesc'),
+      body: t('onboarding.navigationBody'),
+      icon: OnboardingIcons.navigate,
+      badge: t('onboarding.navigationBadge'),
     },
     {
-      title: "AnimeNetRec V2 🚀",
-      subtitle: "Dein Empfehlungs-Modul.",
-      body:
-        "Gewichtet deine echten Daten:\n• abgeschlossene Titel\n• abgebrochene Titel\n• hohe Bewertungen\n• Studio-/Season-Nähe\n→ Ergebnis: Empfehlungen, die wirklich zu dir passen.",
-      icon: "🧠",
-      badge: "Recommendation Engine",
+      title: "AnimeNetRec V2",
+      subtitle: t('onboarding.recEngineTitle'),
+      body: t('onboarding.recEngineDesc'),
+      icon: OnboardingIcons.brain,
+      badge: t('onboarding.recEngineBadge'),
     },
     {
-      title: "Local Worker 📦",
-      subtitle: "Alles läuft lokal.",
-      body:
-        "ShokaiShelf’s Recommendation Engine (AnimeNetRec V2) läuft komplett auf deinem Rechner.\n\nEs nutzt nur deine AniList-Daten, berechnet die Empfehlungen lokal und schickt nichts an fremde Server.\n\nNur AniList wird kontaktiert, um deine Liste zu lesen/aktualisieren oder neue Titel zu suchen.",
-      icon: "📦",
-      badge: "Lokale Power",
+      title: t('onboarding.localWorker'),
+      subtitle: t('onboarding.localWorkerTitle'),
+      body: t('onboarding.localWorkerDesc'),
+      icon: OnboardingIcons.box,
+      badge: t('onboarding.localPower'),
     },
     {
-      title: "Public-Builds 📦",
-      subtitle: "Jeder trägt seine Keys ein.",
-      body: "Du kannst ShokaiShelf weitergeben, ohne deine Secrets mitzuschicken.",
-      icon: "📦",
-      badge: "Weitergabe",
+      title: t('onboarding.publicBuilds'),
+      subtitle: t('onboarding.publicBuildsTitle'),
+      body: t('onboarding.publicBuildsDesc'),
+      icon: OnboardingIcons.share,
+      badge: t('onboarding.sharing'),
     },
   ];
   const s = steps[step];
@@ -139,10 +189,10 @@ function Onboarding({ onClose }: { onClose: () => void }) {
                   width: 30,
                   height: 30,
                   borderRadius: 999,
-                  background: "rgba(0,0,0,0.25)",
+                  background: "rgba(0,0,0,0.35)",
                   display: "grid",
                   placeItems: "center",
-                  fontSize: 16,
+                  padding: 5,
                 }}
               >
                 {st.icon}
@@ -158,7 +208,7 @@ function Onboarding({ onClose }: { onClose: () => void }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 12, opacity: 0.5 }}>
-                Schritt {step + 1} von {steps.length}
+                {t('onboarding.stepOf', { step: step + 1, total: steps.length })}
               </div>
               <h2 style={{ margin: "4px 0 4px 0" }}>{s.title}</h2>
               <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>{s.subtitle}</div>
@@ -175,7 +225,7 @@ function Onboarding({ onClose }: { onClose: () => void }) {
                 fontSize: 12,
               }}
             >
-              Schließen
+              {t('onboarding.close')}
             </button>
           </div>
           <div
@@ -220,7 +270,7 @@ function Onboarding({ onClose }: { onClose: () => void }) {
                     fontSize: 12,
                   }}
                 >
-                  Zurück
+                  {t('common.back')}
                 </button>
               )}
               {step < steps.length - 1 ? (
@@ -236,7 +286,7 @@ function Onboarding({ onClose }: { onClose: () => void }) {
                     fontWeight: 600,
                   }}
                 >
-                  Weiter
+                  {t('common.next')}
                 </button>
               ) : (
                 <button
@@ -251,7 +301,7 @@ function Onboarding({ onClose }: { onClose: () => void }) {
                     fontSize: 12,
                   }}
                 >
-                  Los geht’s
+                  {t('onboarding.letsGo')}
                 </button>
               )}
             </div>
@@ -264,6 +314,7 @@ function Onboarding({ onClose }: { onClose: () => void }) {
 
 /* ───────────────── Setup ───────────────── */
 function SetupScreen() {
+  const { t } = useTranslation();
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const redirectUri = "http://127.0.0.1:43210/callback";
@@ -273,7 +324,7 @@ function SetupScreen() {
   const onSave = async () => {
     setErr("");
     if (!clientId.trim() || !clientSecret.trim()) {
-      setErr("Client ID und Client Secret werden benötigt.");
+      setErr(t('setup.credentialsRequired'));
       return;
     }
     await window.shokai?.setup?.save({
@@ -326,35 +377,35 @@ function SetupScreen() {
               S
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>ShokaiShelf Setup</div>
-              <div style={{ fontSize: 11, color: "rgba(221,235,255,0.55)" }}>AniList verbinden</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{t('setup.title')}</div>
+              <div style={{ fontSize: 11, color: "rgba(221,235,255,0.55)" }}>{t('setup.subtitle')}</div>
             </div>
           </div>
         </div>
 
         <div style={{ padding: 20, color: "#fff" }}>
           <p style={{ marginTop: 0, marginBottom: 14, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-            Trage hier <b>deine</b> AniList OAuth-Daten ein.
+            {t('setup.enterCredentials')}
           </p>
 
-          <label style={labelStyle}>Client ID</label>
+          <label style={labelStyle}>{t('setup.clientId')}</label>
           <input
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            placeholder="Deine AniList Client ID"
+            placeholder={t('setup.clientIdPlaceholder')}
             style={inputStyle}
           />
 
-          <label style={labelStyle}>Client Secret</label>
+          <label style={labelStyle}>{t('setup.clientSecret')}</label>
           <input
             value={clientSecret}
             onChange={(e) => setClientSecret(e.target.value)}
-            placeholder="Dein AniList Client Secret"
+            placeholder={t('setup.clientSecretPlaceholder')}
             style={inputStyle}
             type="password"
           />
 
-          <label style={labelStyle}>Redirect URI (fest)</label>
+          <label style={labelStyle}>{t('setup.redirectUri')}</label>
           <input value={redirectUri} readOnly style={{ ...inputStyle, opacity: 0.6, cursor: "not-allowed" }} />
 
           {err && (
@@ -374,7 +425,7 @@ function SetupScreen() {
 
           {saved ? (
             <div style={{ marginTop: 14, fontSize: 12, color: "#a8ffdb" }}>
-              Konfiguration gespeichert.{" "}
+              {t('setup.configSaved')}{" "}
               <button
                 onClick={() => window.location.reload()}
                 style={{
@@ -386,7 +437,7 @@ function SetupScreen() {
                   fontSize: 12,
                 }}
               >
-                App neu laden
+                {t('setup.reloadApp')}
               </button>
             </div>
           ) : (
@@ -403,12 +454,12 @@ function SetupScreen() {
                 cursor: "pointer",
               }}
             >
-              Speichern & fortfahren
+              {t('setup.saveAndContinue')}
             </button>
           )}
 
           <p style={{ marginTop: 14, fontSize: 11, opacity: 0.55, lineHeight: 1.5 }}>
-            Für Public-Builds bitte eigene Keys nutzen.
+            {t('setup.publicBuildsNote')}
           </p>
         </div>
       </div>
@@ -437,37 +488,97 @@ const inputStyle: React.CSSProperties = {
 
 /* ───────────────── Login-Required ───────────────── */
 function LoginRequired({ onRetry }: { onRetry: () => void }) {
+  const { t } = useTranslation();
   return (
-    <div style={{ height: "100vh", display: "grid", placeItems: "center", background: "#0a0e14", color: "#fff" }}>
-      <div style={{ textAlign: "center", maxWidth: 420 }}>
-        <h2>Du bist abgemeldet</h2>
-        <p style={{ opacity: 0.7 }}>Bitte melde dich bei AniList an.</p>
-        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
+    <div style={{
+      height: "100vh",
+      display: "grid",
+      placeItems: "center",
+      background: "radial-gradient(circle at top, #101624 0%, #060912 55%, #060912 100%)",
+      color: "#fff"
+    }}>
+      <div style={{ textAlign: "center", maxWidth: 500, padding: 32 }}>
+        <div style={{
+          width: 80,
+          height: 80,
+          margin: "0 auto 24px",
+          borderRadius: "50%",
+          background: "linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%)",
+          border: "2px solid rgba(0, 212, 255, 0.3)",
+          display: "grid",
+          placeItems: "center",
+          boxShadow: "0 0 40px rgba(0, 212, 255, 0.15)",
+        }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+
+        <h2 style={{
+          fontSize: 32,
+          fontWeight: 900,
+          marginBottom: 12,
+          background: "linear-gradient(135deg, #fff 0%, #00d4ff 100%)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text"
+        }}>
+          {t('login.connectTitle')}
+        </h2>
+
+        <p style={{
+          opacity: 0.7,
+          marginBottom: 32,
+          fontSize: 16,
+          lineHeight: 1.6
+        }}>
+          {t('login.connectDescription')}
+        </p>
+
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <button
             onClick={() => window.shokai?.auth?.login?.()}
             style={{
-              background: "#00d4ff",
+              background: "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
               border: "none",
-              borderRadius: 6,
-              padding: "6px 16px",
-              fontWeight: 600,
+              borderRadius: 12,
+              padding: "14px 28px",
+              fontWeight: 700,
               cursor: "pointer",
+              fontSize: 15,
+              color: "#000",
+              transition: "all 0.2s",
+              boxShadow: "0 4px 20px rgba(0, 212, 255, 0.3)",
             }}
+            onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+            onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
           >
-            AniList Login
+            {t('login.signIn')}
           </button>
           <button
             onClick={onRetry}
             style={{
-              background: "transparent",
-              border: "1px solid rgba(255,255,255,0.25)",
-              borderRadius: 6,
-              padding: "6px 16px",
-              color: "#fff",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 12,
+              padding: "14px 20px",
+              color: "rgba(255,255,255,0.8)",
               cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 14,
+              transition: "all 0.2s",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+              e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
             }}
           >
-            Erneut prüfen
+            {t('login.checkAgain')}
           </button>
         </div>
       </div>
@@ -481,37 +592,54 @@ function BootLoader({ status }: { status: string }) {
     <div
       style={{
         height: "100vh",
-        background: "radial-gradient(circle at top, #0a0e14 0%, #060912 55%, #060912 100%)",
-        display: "grid",
-        placeItems: "center",
+        background: "linear-gradient(135deg, #0a0e27 0%, #000000 100%)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
         color: "#fff",
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
-      <div style={{ textAlign: "center" }}>
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: "50%",
-            border: "4px solid rgba(255,255,255,0.12)",
-            borderTop: "4px solid #00d4ff",
-            margin: "0 auto 16px auto",
-            animation: "spin 1s linear infinite",
-          }}
-        />
-        <h2 style={{ marginBottom: 6 }}>ShokaiShelf startet…</h2>
-        <p style={{ opacity: 0.6, fontSize: 13, marginBottom: 14 }}>{status}</p>
-        <style>
-          {`@keyframes spin { from {transform: rotate(0deg);} to {transform: rotate(360deg);} }`}
-        </style>
+      {/* Logo */}
+      <div style={{
+        fontSize: 42,
+        fontWeight: 900,
+        background: "linear-gradient(135deg, #00d4ff 0%, #8a2be2 100%)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        marginBottom: 32,
+        letterSpacing: -1,
+      }}>
+        ShokaiShelf
       </div>
+
+      {/* Spinner */}
+      <div
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: "50%",
+          border: "3px solid rgba(255,255,255,0.1)",
+          borderTop: "3px solid #00d4ff",
+          marginBottom: 24,
+          animation: "spin 0.8s linear infinite",
+        }}
+      />
+
+      {/* Status */}
+      <p style={{ opacity: 0.6, fontSize: 14, fontWeight: 500 }}>{status}</p>
+
+      <style>
+        {`@keyframes spin { from {transform: rotate(0deg);} to {transform: rotate(360deg);} }`}
+      </style>
     </div>
   );
 }
 
 /* ───────────────── App ───────────────── */
 export default function App() {
+  const { t } = useTranslation();
   const [page, setPage] = useState<PageKey>("home");
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
@@ -519,84 +647,142 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [avatar, setAvatar] = useState("");
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [bootStatus, setBootStatus] = useState("IPC verbinden…");
+  const [bootStatus, setBootStatus] = useState(t('boot.starting'));
   const [engineReady, setEngineReady] = useState(true);
+  const [migrating, setMigrating] = useState(false);
+  const [scrobblerCandidate, setScrobblerCandidate] = useState<ScrobblerCandidate | null>(null);
+  const [miruScrobble, setMiruScrobble] = useState<any>(null);
+  const [lastScrobbledUrl, setLastScrobbledUrl] = useState<string | null>(null);
+  const [userLibrary, setUserLibrary] = useState<any[]>([]);
 
   const hasBridge = typeof window !== "undefined" && !!window.shokai;
 
-  // versucht AnimeNetRec V2 vorzuwärmen; wenn Datei nicht da ist: egal
+  // versucht AnimeNetRec V3 vorzuwarmen; wenn Datei nicht da ist: egal
   const preloadEngine = async () => {
     try {
-      setBootStatus("AnimeNetRec V2 initialisieren…");
-      // Pfad an dein Projekt angepasst
-      const mod = await import("@logic/netrecV2");
-      if (typeof mod?.warmup === "function") {
-        await mod.warmup();
-      } else if (typeof mod?.init === "function") {
-        await mod.init();
+      setBootStatus(t('boot.loadingEngine'));
+      try {
+        netrecV3.createEngine();
+      } catch {
+        // Ignorieren: Seiten handlen Fallback selbst
       }
       setEngineReady(true);
     } catch (_e) {
-      // Engine nicht vorhanden → trotzdem weiter
+      // Engine nicht vorhanden ??' trotzdem weiter
       setEngineReady(true);
+    }
+  };
+
+  // Dream V4 migration check
+  const checkDreamMigration = async (userName: string) => {
+    try {
+      setBootStatus(t('boot.checkingProfile'));
+      const status = await getMigrationStatus(userName);
+
+      if (status === 'not_started') {
+        setMigrating(true);
+        setBootStatus(t('boot.migrating'));
+
+        const result = await checkAndMigrate(userName);
+
+        if (result.migrated) {
+          console.log("[App] Dream V4 migration successful");
+          // Initialize Dream engine
+          createDreamEngine();
+        } else if (result.profile) {
+          console.log("[App] Dream V4 profile already exists");
+          createDreamEngine();
+        }
+
+        setMigrating(false);
+      } else if (status === 'complete') {
+        // Profile exists, initialize engine
+        createDreamEngine();
+      }
+    } catch (error) {
+      console.warn("[App] Dream migration check failed:", error);
+      setMigrating(false);
     }
   };
 
   const refresh = async () => {
     if (!hasBridge) {
+      console.log("No bridge found");
       return;
     }
-    
-    
+
+    console.log("=== REFRESH START ===");
+
     try {
-      setBootStatus("Setup-Status prüfen…");
-      
+      setBootStatus(t('boot.checkingConfig'));
+      console.log("Calling needsSetup...");
+
       const mustSetup = await Promise.race([
         window.shokai.app.needsSetup(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("needsSetup timeout")), 5000))
       ]);
-      
-      
+
+      console.log("needsSetup result:", mustSetup);
+
       if (mustSetup) {
+        console.log("Setup required, showing setup screen");
         setNeedsSetup(true);
         setLoggedIn(false);
         setLoading(false);
         return;
       }
-  
-      setBootStatus("Login-Status prüfen…");
-      
+
+      setBootStatus(t('boot.connecting'));
+      console.log("Calling status...");
+
       const status = await Promise.race([
         window.shokai.status(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("status timeout")), 5000))
       ]);
-      
-      
+
+      console.log("Status result:", status);
+
       if (!status.loggedIn) {
+        console.log("Not logged in, showing login screen");
         setNeedsSetup(false);
         setLoggedIn(false);
         setLoading(false);
         return;
       }
-  
-      setBootStatus("Profil laden…");
-      
+
+      setBootStatus(t('boot.loadingProfile'));
+      console.log("Loading profile...");
+
+      let currentUserName = status.viewerName || "";
       try {
-        const api = await import("@api/anilist");
-        const me = await api.viewer();
-        setUsername(me?.name || status.viewerName || "");
+        const me = await anilistAPI.viewer();
+        currentUserName = me?.name || status.viewerName || "";
+        setUsername(currentUserName);
         setAvatar(me?.avatar?.large || "");
+
+        // Load library for smart scrobbling
+        if (me?.id) {
+          const listsData = await anilistAPI.userLists(me.id);
+          setUserLibrary(listsData?.lists || []);
+        }
       } catch (e) {
+        console.log("Profile load failed, using status name:", e);
         setUsername(status.viewerName || "");
       }
-  
-      setBootStatus("Engine initialisieren…");
+
+      setBootStatus(t('boot.initEngine'));
       await preloadEngine();
-  
+
+      // Check and perform Dream V4 migration
+      if (currentUserName) {
+        await checkDreamMigration(currentUserName);
+      }
+
+      console.log("Everything loaded, showing app");
       setNeedsSetup(false);
       setLoggedIn(true);
       setLoading(false);
-  
+
       const first = localStorage.getItem("shokai:firstRun");
       if (first === "1") {
         setShowOnboarding(true);
@@ -619,11 +805,165 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasBridge]);
 
+  // Discord RPC - Page Updates
+  useEffect(() => {
+    if (!hasBridge || !(window as any).shokai?.discord) return;
+    const activities: Record<PageKey, string> = {
+      home: 'Discovering new anime',
+      feed: 'Touching grass',
+      search: 'Hunting for anime',
+      library: 'Organizing the collection',
+      social: 'Touching grass',
+      settings: 'Tweaking the settings',
+      echo: 'Reviewing the Echo',
+      achievements: 'Checking achievements',
+    };
+    (window as any).shokai.discord.setActivity({
+      title: 'ShokaiShelf',
+      state: activities[page],
+    });
+  }, [page, hasBridge]);
+
+  // Scrobbler detection listener
+  useEffect(() => {
+    if (!hasBridge || !(window as any).shokai?.scrobbler) return;
+    const unsub = (window as any).shokai.scrobbler.onDetection(async (candidate: ScrobblerCandidate) => {
+      // Update Discord RPC with anime being watched
+      if (candidate.cleanTitle && (window as any).shokai?.discord) {
+        const episodeText = candidate.episode ? ` - Episode ${candidate.episode}` : '';
+        (window as any).shokai.discord.setActivity({
+          title: candidate.cleanTitle,
+          state: `Watching${episodeText}`,
+          episode: candidate.episode,
+        });
+        console.log('[App] Discord RPC updated (local):', candidate.cleanTitle);
+      }
+
+      // Wenn wir in der Library einen sehr guten Match finden, boosten wir die Confidence
+      if (userLibrary.length > 0) {
+        const match = findBestMatch(candidate.cleanTitle, userLibrary);
+        if (match.media && match.confidence > 0.85) {
+          console.log(`[App] Scrobbler Smart Match: ${candidate.cleanTitle} -> ${match.media.title.english}`);
+
+          // Wenn extrem sicher, könnten wir hier auch auto-scrobbeln. 
+          // Aber beim lokalen Scrobbler (Dateien) ist ein Toast oft sicherer.
+          // Wir setzen aber die Media-Informationen schon mal für den Toast.
+          (candidate as any).mediaId = match.media.id;
+          candidate.confidence = Math.max(candidate.confidence, match.confidence);
+        }
+      }
+
+      // Nur benachrichtigen, wenn nicht extrem sicher
+      if (candidate.confidence < 0.9) {
+        (window as any).shokai?.app?.notify({
+          title: t('scrobbler.detected'),
+          body: t('scrobbler.detectedRunning', { title: candidate.cleanTitle, app: candidate.app })
+        });
+      }
+
+      setScrobblerCandidate(candidate);
+    });
+    return () => unsub?.();
+  }, [hasBridge, userLibrary]);
+
+  // Miru scrobble listener
+  useEffect(() => {
+    if (!hasBridge || !(window as any).shokai?.miru) return;
+    const unsub = (window as any).shokai.miru.onScrobble(async (data: any) => {
+      // Ignore if it's the same URL we just handled
+      if (lastScrobbledUrl === data.url && data.progress === 0) return;
+
+      console.log('[App] Miru scrobble:', data);
+
+      // Update Discord RPC with anime being watched
+      if (data.title && (window as any).shokai?.discord) {
+        const episodeText = data.episode ? ` - Episode ${data.episode}` : '';
+        (window as any).shokai.discord.setActivity({
+          title: data.title,
+          state: `Watching${episodeText}`,
+          episode: data.episode,
+        });
+        console.log('[App] Discord RPC updated:', data.title);
+      }
+
+      // Smart Matcher: Versuche ID aus Library oder Suche zu finden
+      let mediaId = data.mediaId;
+      let confidence = data.confidence || 0;
+
+      if (!mediaId && userLibrary.length > 0) {
+        const match = findBestMatch(data.title, userLibrary);
+        if (match.media && match.confidence > 0.85) {
+          mediaId = match.media.id;
+          confidence = match.confidence;
+          console.log(`[App] Smart Match (Library): ${data.title} -> ${match.media.title.english} (${Math.round(confidence * 100)}%)`);
+        }
+      }
+
+      // Nur bei PLAY events (progress = 0) zeigen wir den Toast
+      if (data.progress === 0 && !data.completed) {
+        // Wenn wir extrem sicher sind (>92%), überspringen wir den Toast und scrobbeln still
+        if (mediaId && confidence > 0.92) {
+          console.log('[App] High confidence, skipping toast:', data.title);
+          setLastScrobbledUrl(data.url);
+          // Wir lernen das Match trotzdem im Scrobbler-Gedächtnis
+          (window as any).shokai?.scrobbler?.confirmMatch(data.title, mediaId);
+        } else {
+          // Ansonsten fragen wir den User
+          setMiruScrobble({ ...data, mediaId, confidence });
+          setLastScrobbledUrl(data.url);
+
+          // System-Benachrichtigung schicken
+          (window as any).shokai?.app?.notify({
+            title: t('scrobbler.detected'),
+            body: t('scrobbler.pleaseConfirmBody', { title: data.title })
+          });
+        }
+      } else if (data.completed || data.progress >= 75) {
+        // Auto-update bei completion (>75% watched)
+        try {
+          const { saveEntry, searchMedia } = await import("./api/anilist");
+
+          // Letzter Rettungsanker: Wenn wir noch keine ID haben, suchen wir jetzt global
+          if (!mediaId) {
+            const searchResults = await searchMedia(data.title);
+            const match = findBestMatch(data.title, userLibrary, searchResults);
+            if (match.media) {
+              mediaId = match.media.id;
+              confidence = match.confidence;
+            }
+          }
+
+          if (mediaId) {
+            await saveEntry(mediaId, "CURRENT", data.episode);
+            console.log('[App] Auto-updated AniList:', mediaId, 'Episode', data.episode);
+
+            // Wenn wir erfolgreich waren, lernen wir das für die Zukunft!
+            (window as any).shokai?.scrobbler?.confirmMatch(data.title, mediaId);
+          } else {
+            // FALLBACK: Kein Match gefunden - User muss manuell bestätigen
+            console.log('[App] No match found for 75% event, showing toast:', data.title);
+            setMiruScrobble({ ...data, mediaId: null, confidence: 0 });
+            setLastScrobbledUrl(data.url);
+
+            // System-Benachrichtigung
+            (window as any).shokai?.app?.notify({
+              title: t('scrobbler.almostFinished'),
+              body: t('scrobbler.almostFinishedBody', { title: data.title })
+            });
+          }
+        } catch (err) {
+          console.error('[App] Auto-update failed:', err);
+        }
+      }
+    });
+    return () => unsub?.();
+  }, [hasBridge, lastScrobbledUrl, userLibrary]);
+
   // kein preload
   if (!hasBridge) {
     return (
       <SettingsProvider>
-        <BootLoader status="Preload nicht gefunden. Bitte Electron prüfen…" />
+        <BootLoader status={t('boot.preloadNotFound')} />
       </SettingsProvider>
     );
   }
@@ -656,14 +996,20 @@ export default function App() {
   // echte App
   return (
     <SettingsProvider>
+      <UpdateBanner />
       <div style={{ display: "flex", height: "100vh" }}>
         <Sidebar page={page} setPage={setPage} authed={true} username={username} avatar={avatar} hideCharacters />
         <div style={{ flex: 1, overflowY: "auto", background: "#060912" }}>
-          <div style={{ padding: 20 }}>
+          <div style={{ padding: page === "home" ? 0 : 20 }}>
             <AnimatePresence mode="popLayout">
               {page === "home" && (
-                <motion.div key="home" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Dashboard />
+                <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <Dashboard onNavigate={setPage} />
+                </motion.div>
+              )}
+              {page === "feed" && (
+                <motion.div key="feed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <Social />
                 </motion.div>
               )}
               {page === "search" && (
@@ -676,9 +1022,24 @@ export default function App() {
                   <Library />
                 </motion.div>
               )}
+              {page === "social" && (
+                <motion.div key="social" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <Social />
+                </motion.div>
+              )}
               {page === "settings" && (
                 <motion.div key="settings" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                   <Settings onLoggedIn={() => refresh()} />
+                </motion.div>
+              )}
+              {page === "echo" && (
+                <motion.div key="echo" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <Echo />
+                </motion.div>
+              )}
+              {page === "achievements" && (
+                <motion.div key="achievements" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <Achievements />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -686,6 +1047,44 @@ export default function App() {
         </div>
       </div>
       {showOnboarding && <Onboarding onClose={() => setShowOnboarding(false)} />}
+
+      {scrobblerCandidate && (
+        <ScrobblerToast
+          candidate={scrobblerCandidate}
+          onConfirm={(mediaId) => {
+            (window as any).shokai?.scrobbler?.confirmMatch(scrobblerCandidate.cleanTitle, mediaId);
+            setScrobblerCandidate(null);
+          }}
+          onDismiss={() => setScrobblerCandidate(null)}
+        />
+      )}
+
+      {miruScrobble && (
+        <ScrobblerToast
+          candidate={{
+            cleanTitle: miruScrobble.title,
+            episode: miruScrobble.episode,
+            app: miruScrobble.site,
+            confidence: miruScrobble.confidence,
+          }}
+          onConfirm={async (mediaId) => {
+            // Update AniList with episode progress
+            try {
+              const { saveEntry } = await import("./api/anilist");
+              await saveEntry(mediaId, "CURRENT", miruScrobble.episode);
+              console.log('[App] Updated AniList:', mediaId, 'Episode', miruScrobble.episode);
+
+              // Teach the scrobbler!
+              (window as any).shokai?.scrobbler?.confirmMatch(miruScrobble.title, mediaId);
+
+            } catch (err) {
+              console.error('[App] Failed to update AniList:', err);
+            }
+            setMiruScrobble(null);
+          }}
+          onDismiss={() => setMiruScrobble(null)}
+        />
+      )}
     </SettingsProvider>
   );
 }

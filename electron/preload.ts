@@ -22,3 +22,21 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   // You can expose other APTs you need here.
   // ...
 })
+
+// --------- Expose Notification API ---------
+contextBridge.exposeInMainWorld('notifications', {
+  getConfig: () => ipcRenderer.invoke('notifications:getConfig'),
+  updateConfig: (config: any) => ipcRenderer.invoke('notifications:updateConfig', config),
+  checkNow: () => ipcRenderer.invoke('notifications:checkNow'),
+  getHistory: () => ipcRenderer.invoke('notifications:getHistory'),
+})
+
+// --------- Enhanced shokai API ---------
+// Erweitere das bestehende shokai API (falls vorhanden)
+contextBridge.exposeInMainWorld('shokai', {
+  store: {
+    get: (key: string) => ipcRenderer.invoke('store:get', key),
+    set: (key: string, value: any) => ipcRenderer.invoke('store:set', key, value),
+    delete: (key: string) => ipcRenderer.invoke('store:delete', key),
+  },
+})

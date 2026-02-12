@@ -1,0 +1,294 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@electron/rebuild": {
+      "name": "@electron/rebuild",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "node-gyp",
+        "tar"
+      ],
+      "effects": [
+        "app-builder-lib"
+      ],
+      "range": "3.2.10 - 4.0.2",
+      "nodes": [
+        "node_modules/@electron/rebuild"
+      ],
+      "fixAvailable": {
+        "name": "electron-builder",
+        "version": "26.7.0",
+        "isSemVerMajor": true
+      }
+    },
+    "app-builder-lib": {
+      "name": "app-builder-lib",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "@electron/rebuild",
+        "dmg-builder",
+        "electron-builder-squirrel-windows",
+        "tar"
+      ],
+      "effects": [
+        "dmg-builder",
+        "electron-builder",
+        "electron-builder-squirrel-windows"
+      ],
+      "range": "23.0.7 - 26.5.0",
+      "nodes": [
+        "node_modules/app-builder-lib"
+      ],
+      "fixAvailable": {
+        "name": "electron-builder",
+        "version": "26.7.0",
+        "isSemVerMajor": true
+      }
+    },
+    "cacache": {
+      "name": "cacache",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "tar"
+      ],
+      "effects": [
+        "make-fetch-happen"
+      ],
+      "range": "14.0.0 - 18.0.4",
+      "nodes": [
+        "node_modules/cacache"
+      ],
+      "fixAvailable": {
+        "name": "electron-builder",
+        "version": "26.7.0",
+        "isSemVerMajor": true
+      }
+    },
+    "dmg-builder": {
+      "name": "dmg-builder",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "app-builder-lib"
+      ],
+      "effects": [
+        "electron-builder"
+      ],
+      "range": "23.0.7 - 26.4.1",
+      "nodes": [
+        "node_modules/dmg-builder"
+      ],
+      "fixAvailable": {
+        "name": "electron-builder",
+        "version": "26.7.0",
+        "isSemVerMajor": true
+      }
+    },
+    "electron": {
+      "name": "electron",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1107272,
+          "name": "electron",
+          "dependency": "electron",
+          "title": "Electron has ASAR Integrity Bypass via resource modification",
+          "url": "https://github.com/advisories/GHSA-vmqv-hx8q-j7mg",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-94",
+            "CWE-829"
+          ],
+          "cvss": {
+            "score": 6.1,
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:R/S:U/C:L/I:H/A:L"
+          },
+          "range": "<35.7.5"
+        }
+      ],
+      "effects": [],
+      "range": "<35.7.5",
+      "nodes": [
+        "node_modules/electron"
+      ],
+      "fixAvailable": {
+        "name": "electron",
+        "version": "40.4.0",
+        "isSemVerMajor": true
+      }
+    },
+    "electron-builder": {
+      "name": "electron-builder",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        "app-builder-lib",
+        "dmg-builder"
+      ],
+      "effects": [],
+      "range": "19.25.0 || 23.0.7 - 26.4.1",
+      "nodes": [
+        "node_modules/electron-builder"
+      ],
+      "fixAvailable": {
+        "name": "electron-builder",
+        "version": "26.7.0",
+        "isSemVerMajor": true
+      }
+    },
+    "electron-builder-squirrel-windows": {
+      "name": "electron-builder-squirrel-windows",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "app-builder-lib"
+      ],
+      "effects": [
+        "app-builder-lib"
+      ],
+      "range": "23.0.7 - 26.4.1",
+      "nodes": [
+        "node_modules/electron-builder-squirrel-windows"
+      ],
+      "fixAvailable": {
+        "name": "electron-builder",
+        "version": "26.7.0",
+        "isSemVerMajor": true
+      }
+    },
+    "make-fetch-happen": {
+      "name": "make-fetch-happen",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "cacache"
+      ],
+      "effects": [
+        "node-gyp"
+      ],
+      "range": "7.1.1 - 14.0.0",
+      "nodes": [
+        "node_modules/make-fetch-happen"
+      ],
+      "fixAvailable": {
+        "name": "electron-builder",
+        "version": "26.7.0",
+        "isSemVerMajor": true
+      }
+    },
+    "node-gyp": {
+      "name": "node-gyp",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "make-fetch-happen",
+        "tar"
+      ],
+      "effects": [
+        "@electron/rebuild"
+      ],
+      "range": "<=10.3.1",
+      "nodes": [
+        "node_modules/node-gyp"
+      ],
+      "fixAvailable": {
+        "name": "electron-builder",
+        "version": "26.7.0",
+        "isSemVerMajor": true
+      }
+    },
+    "tar": {
+      "name": "tar",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112255,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization",
+          "url": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+          "severity": "high",
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=7.5.2"
+        },
+        {
+          "source": 1112329,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS",
+          "url": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w",
+          "severity": "high",
+          "cwe": [
+            "CWE-176"
+          ],
+          "cvss": {
+            "score": 8.8,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:H/A:L"
+          },
+          "range": "<=7.5.3"
+        },
+        {
+          "source": 1112659,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal",
+          "url": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v",
+          "severity": "high",
+          "cwe": [
+            "CWE-22",
+            "CWE-59"
+          ],
+          "cvss": {
+            "score": 8.2,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:L/A:N"
+          },
+          "range": "<7.5.7"
+        }
+      ],
+      "effects": [
+        "@electron/rebuild",
+        "app-builder-lib",
+        "cacache",
+        "node-gyp"
+      ],
+      "range": "<=7.5.6",
+      "nodes": [
+        "node_modules/tar"
+      ],
+      "fixAvailable": {
+        "name": "electron-builder",
+        "version": "26.7.0",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 1,
+      "high": 9,
+      "critical": 0,
+      "total": 10
+    },
+    "dependencies": {
+      "prod": 101,
+      "dev": 754,
+      "optional": 83,
+      "peer": 35,
+      "peerOptional": 0,
+      "total": 858
+    }
+  }
+}

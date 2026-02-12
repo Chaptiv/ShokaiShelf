@@ -1,0 +1,1243 @@
+/* =============================================================================
+   ShokaiShelf Echo - Premium Anime Recap Experience
+   ============================================================================= */
+
+:root {
+  --echo-bg: #0a0a0a;
+  --echo-card: rgba(255, 255, 255, 0.03);
+  --echo-card-border: rgba(255, 255, 255, 0.08);
+  --echo-text: #ffffff;
+  --echo-text-dim: rgba(255, 255, 255, 0.6);
+  --echo-text-muted: rgba(255, 255, 255, 0.4);
+  --echo-accent: #8b5cf6;
+  --echo-accent-pink: #ec4899;
+  --echo-accent-cyan: #06b6d4;
+  --echo-accent-green: #22c55e;
+}
+
+/* =============================================================================
+   CONTAINER & BACKGROUND
+   ============================================================================= */
+
+.echo-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background: var(--echo-bg);
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--echo-text);
+}
+
+.echo-gradient-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.6;
+  pointer-events: none;
+  transition: background 0.5s ease;
+}
+
+.echo-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.echo-loading-content {
+  text-align: center;
+  z-index: 10;
+}
+
+.echo-loading-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+}
+
+.echo-loading-text {
+  font-size: 1.1rem;
+  color: var(--echo-text-dim);
+  letter-spacing: 0.05em;
+}
+
+/* =============================================================================
+   PROGRESS BAR
+   ============================================================================= */
+
+.echo-progress {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  gap: 4px;
+  z-index: 100;
+}
+
+.echo-progress-bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.echo-progress-bar.active {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.echo-progress-bar:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scaleY(1.5);
+}
+
+/* =============================================================================
+   HEADER
+   ============================================================================= */
+
+.echo-header {
+  position: absolute;
+  top: 32px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 50;
+}
+
+.echo-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.echo-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.echo-user-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--echo-text-dim);
+}
+
+.echo-period-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.echo-period-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  color: var(--echo-text-dim);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.echo-period-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.echo-period-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--echo-text);
+}
+
+.echo-period-dropdown {
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  color: var(--echo-text);
+  font-size: 0.75rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.echo-period-dropdown option {
+  background: #1a1a1a;
+  color: white;
+}
+
+/* =============================================================================
+   NAVIGATION
+   ============================================================================= */
+
+.echo-nav-area {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 25%;
+  z-index: 20;
+  cursor: pointer;
+}
+
+.echo-nav-prev {
+  left: 0;
+}
+
+.echo-nav-next {
+  right: 0;
+}
+
+.echo-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  transition: all 0.2s;
+  opacity: 0.7;
+}
+
+.echo-nav-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.echo-nav-btn-prev {
+  left: 20px;
+}
+
+.echo-nav-btn-next {
+  right: 20px;
+}
+
+/* =============================================================================
+   CONTENT & SLIDES
+   ============================================================================= */
+
+.echo-content {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px 60px;
+  z-index: 10;
+}
+
+.echo-slide-wrapper {
+  width: 100%;
+  max-width: 420px;
+  height: 100%;
+  max-height: 700px;
+  display: flex;
+}
+
+.echo-slide {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+}
+
+.echo-slide-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #fff 0%, #ccc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.echo-slide-subtitle {
+  font-size: 0.95rem;
+  color: var(--echo-text-dim);
+  margin-bottom: 1.5rem;
+}
+
+.echo-counter {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: var(--echo-text-muted);
+  z-index: 50;
+}
+
+/* =============================================================================
+   INTRO SLIDE
+   ============================================================================= */
+
+.echo-slide-intro {
+  gap: 20px;
+}
+
+.echo-intro-badge {
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, var(--echo-accent), var(--echo-accent-pink));
+  border-radius: 30px;
+  color: white;
+}
+
+.echo-intro-user {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.echo-intro-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.echo-intro-greeting {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.echo-intro-period {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.echo-intro-label {
+  font-size: 0.9rem;
+  color: var(--echo-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.echo-intro-time {
+  font-size: 1.8rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--echo-accent-cyan), var(--echo-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.echo-intro-hint {
+  font-size: 0.85rem;
+  color: var(--echo-text-muted);
+  margin-top: 20px;
+}
+
+/* =============================================================================
+   STATS SLIDE
+   ============================================================================= */
+
+.echo-slide-stats {
+  gap: 24px;
+}
+
+.echo-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.echo-stat-card {
+  background: var(--echo-card);
+  border: 1px solid var(--echo-card-border);
+  border-radius: 20px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.echo-stat-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.echo-stat-emoji {
+  font-size: 1.8rem;
+}
+
+.echo-stat-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.echo-stat-label {
+  font-size: 0.8rem;
+  color: var(--echo-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.echo-comparison {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 30px;
+  font-size: 0.9rem;
+  color: var(--echo-text-dim);
+}
+
+.echo-comparison-trend {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.echo-comparison-trend.up {
+  color: var(--echo-accent-green);
+}
+
+.echo-comparison-trend.down {
+  color: #ef4444;
+}
+
+/* =============================================================================
+   TOP ANIME SLIDE
+   ============================================================================= */
+
+.echo-slide-top-anime {
+  gap: 20px;
+}
+
+.echo-top-anime-list {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.echo-top-anime-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: var(--echo-card);
+  border: 1px solid var(--echo-card-border);
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+  position: relative;
+}
+
+.echo-top-anime-rank {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.echo-top-anime-cover {
+  width: 100%;
+  max-width: 140px;
+  aspect-ratio: 2/3;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.echo-top-anime-info {
+  width: 100%;
+}
+
+.echo-top-anime-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.echo-top-anime-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+  justify-content: center;
+}
+
+.echo-top-anime-score {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.echo-top-anime-eps {
+  color: var(--echo-text-dim);
+}
+
+.echo-top-anime-genres {
+  font-size: 0.75rem;
+  color: var(--echo-text-muted);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* =============================================================================
+   GENRES SLIDE
+   ============================================================================= */
+
+.echo-slide-genres {
+  gap: 20px;
+}
+
+.echo-genres-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.echo-genre-item {
+  width: 100%;
+}
+
+.echo-genre-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.echo-genre-emoji {
+  font-size: 1.2rem;
+}
+
+.echo-genre-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  flex: 1;
+  text-align: left;
+}
+
+.echo-genre-count {
+  font-size: 0.8rem;
+  color: var(--echo-text-dim);
+}
+
+.echo-genre-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.echo-genre-bar {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.echo-genre-percent {
+  font-size: 0.75rem;
+  color: var(--echo-text-muted);
+  margin-top: 4px;
+  display: block;
+  text-align: right;
+}
+
+.echo-new-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.echo-new-label {
+  font-size: 0.8rem;
+  color: var(--echo-text-dim);
+}
+
+.echo-new-tag {
+  padding: 4px 12px;
+  background: var(--echo-accent-green);
+  color: #000;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 20px;
+}
+
+/* =============================================================================
+   VIBE SLIDE
+   ============================================================================= */
+
+.echo-slide-vibe {
+  gap: 24px;
+}
+
+.echo-vibe-label {
+  font-size: 0.9rem;
+  color: var(--echo-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.echo-vibe-mood {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.echo-vibe-variety {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.echo-vibe-variety-label {
+  font-size: 0.85rem;
+  color: var(--echo-text-dim);
+  margin-bottom: 12px;
+}
+
+.echo-vibe-variety-meter {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.echo-vibe-variety-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  transition: background 0.3s;
+}
+
+.echo-vibe-variety-dot.active {
+  background: linear-gradient(135deg, var(--echo-accent), var(--echo-accent-pink));
+}
+
+.echo-vibe-variety-text {
+  font-size: 0.85rem;
+  color: var(--echo-text-dim);
+}
+
+/* =============================================================================
+   STUDIO SLIDE
+   ============================================================================= */
+
+.echo-slide-studio {
+  gap: 20px;
+}
+
+.echo-studio-name {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--echo-accent-cyan), var(--echo-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.echo-studio-count {
+  font-size: 0.95rem;
+  color: var(--echo-text-dim);
+}
+
+.echo-studio-anime-grid {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.echo-studio-anime-item {
+  width: 100px;
+  text-align: center;
+}
+
+.echo-studio-anime-cover {
+  width: 100px;
+  height: 140px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.echo-studio-anime-placeholder {
+  width: 100px;
+  height: 140px;
+  border-radius: 10px;
+  background: var(--echo-card);
+}
+
+.echo-studio-anime-title {
+  font-size: 0.75rem;
+  color: var(--echo-text-dim);
+  margin-top: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.echo-studio-loyalty {
+  margin-top: 16px;
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--echo-accent-cyan);
+}
+
+/* =============================================================================
+   PATTERN SLIDE
+   ============================================================================= */
+
+.echo-slide-pattern {
+  gap: 24px;
+}
+
+.echo-pattern-stats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.echo-pattern-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--echo-card);
+  border: 1px solid var(--echo-card-border);
+  border-radius: 16px;
+}
+
+.echo-pattern-emoji {
+  font-size: 1.8rem;
+}
+
+.echo-pattern-label {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--echo-text-dim);
+  text-align: left;
+}
+
+.echo-pattern-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.echo-pattern-badge {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.2));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  font-size: 0.9rem;
+}
+
+/* =============================================================================
+   HIDDEN GEMS SLIDE
+   ============================================================================= */
+
+.echo-slide-gems {
+  gap: 16px;
+}
+
+.echo-gems-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.echo-gem-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  background: var(--echo-card);
+  border: 1px solid var(--echo-card-border);
+  border-radius: 16px;
+  position: relative;
+}
+
+.echo-gem-cover {
+  width: 50px;
+  height: 70px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.echo-gem-info {
+  flex: 1;
+  text-align: left;
+  min-width: 0;
+}
+
+.echo-gem-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.echo-gem-scores {
+  display: flex;
+  gap: 12px;
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+}
+
+.echo-gem-your-score {
+  color: #fbbf24;
+}
+
+.echo-gem-avg-score {
+  color: var(--echo-text-dim);
+}
+
+.echo-gem-popularity {
+  font-size: 0.75rem;
+  color: var(--echo-text-muted);
+}
+
+.echo-gem-badge {
+  font-size: 1.5rem;
+}
+
+/* =============================================================================
+   PERSONA SLIDE
+   ============================================================================= */
+
+.echo-slide-persona {
+  gap: 16px;
+}
+
+.echo-persona-emoji {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.echo-persona-label {
+  font-size: 0.9rem;
+  color: var(--echo-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 12px;
+}
+
+.echo-persona-name {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 8px 0;
+}
+
+.echo-persona-title {
+  font-size: 1rem;
+  color: var(--echo-text-dim);
+  margin-bottom: 16px;
+}
+
+.echo-persona-desc {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--echo-text-dim);
+  max-width: 320px;
+}
+
+.echo-persona-traits {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.echo-persona-trait {
+  padding: 6px 14px;
+  border: 1px solid;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+/* =============================================================================
+   FUN FACTS SLIDE
+   ============================================================================= */
+
+.echo-slide-facts {
+  gap: 24px;
+}
+
+.echo-facts-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.echo-fact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: var(--echo-card);
+  border: 1px solid var(--echo-card-border);
+  border-radius: 16px;
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.echo-fact-bullet {
+  color: var(--echo-accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* =============================================================================
+   ANIME OF THE PERIOD SLIDE
+   ============================================================================= */
+
+.echo-slide-aotm {
+  gap: 20px;
+}
+
+.echo-aotm-label {
+  font-size: 0.85rem;
+  color: var(--echo-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.echo-aotm-cover-wrapper {
+  position: relative;
+}
+
+.echo-aotm-cover {
+  width: 180px;
+  height: 255px;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.echo-aotm-score {
+  position: absolute;
+  bottom: -10px;
+  right: -10px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #000;
+  font-weight: 800;
+  font-size: 0.95rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.4);
+}
+
+.echo-aotm-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 16px 0 8px;
+  max-width: 300px;
+}
+
+.echo-aotm-reason {
+  font-size: 0.95rem;
+  color: var(--echo-text-dim);
+  font-style: italic;
+}
+
+/* =============================================================================
+   SHARE SLIDE
+   ============================================================================= */
+
+.echo-slide-share {
+  gap: 24px;
+}
+
+.echo-share-card {
+  width: 320px;
+  padding: 24px;
+  background: linear-gradient(145deg, #1a1a2e, #0f0f1a);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.echo-share-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.echo-share-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.echo-share-logo {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--echo-accent), var(--echo-accent-pink));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.echo-share-brand-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--echo-text-dim);
+}
+
+.echo-share-period {
+  font-size: 0.75rem;
+  color: var(--echo-text-muted);
+}
+
+.echo-share-user {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.echo-share-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+.echo-share-username {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.echo-share-persona {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 30px;
+  margin-bottom: 20px;
+}
+
+.echo-share-persona-emoji {
+  font-size: 1.3rem;
+}
+
+.echo-share-persona-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--echo-accent);
+}
+
+.echo-share-stats {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.echo-share-stat {
+  text-align: center;
+}
+
+.echo-share-stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.echo-share-stat-label {
+  font-size: 0.7rem;
+  color: var(--echo-text-muted);
+  text-transform: uppercase;
+}
+
+.echo-share-top {
+  margin-bottom: 16px;
+}
+
+.echo-share-top-label {
+  font-size: 0.75rem;
+  color: var(--echo-text-muted);
+  margin-bottom: 10px;
+}
+
+.echo-share-top-covers {
+  display: flex;
+  justify-content: center;
+  padding-left: 30px;
+}
+
+.echo-share-top-cover {
+  width: 60px;
+  height: 85px;
+  border-radius: 8px;
+  object-fit: cover;
+  margin-left: -25px;
+  border: 2px solid #1a1a2e;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.echo-share-genres {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.echo-share-genre {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.echo-share-extra {
+  font-size: 0.75rem;
+  color: var(--echo-text-dim);
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  text-align: center;
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.echo-share-footer {
+  font-size: 0.7rem;
+  color: var(--echo-text-muted);
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 8px;
+}
+
+.echo-share-btn {
+  padding: 14px 36px;
+  background: linear-gradient(135deg, var(--echo-accent), var(--echo-accent-pink));
+  border: none;
+  border-radius: 30px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.echo-share-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+}
+
+.echo-share-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.echo-share-hint {
+  font-size: 0.8rem;
+  color: var(--echo-text-muted);
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+
+@media (max-width: 480px) {
+  .echo-slide-title {
+    font-size: 1.5rem;
+  }
+
+  .echo-intro-avatar {
+    width: 80px;
+    height: 80px;
+  }
+
+  .echo-intro-greeting {
+    font-size: 1.6rem;
+  }
+
+  .echo-stat-value {
+    font-size: 1.8rem;
+  }
+
+  .echo-share-card {
+    width: 280px;
+    padding: 20px;
+  }
+
+  .echo-aotm-cover {
+    width: 150px;
+    height: 212px;
+  }
+
+  .echo-studio-anime-item {
+    width: 80px;
+  }
+
+  .echo-studio-anime-cover {
+    width: 80px;
+    height: 112px;
+  }
+}

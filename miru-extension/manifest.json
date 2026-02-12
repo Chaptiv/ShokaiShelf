@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "ShokaiShelf Miru",
+  "version": "1.0.0",
+  "description": "Browser Scrobbling for ShokaiShelf - Automatically track your anime watching",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs",
+    "alarms"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content-scripts/generic-detector.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "host_permissions": [
+    "https://*.crunchyroll.com/*",
+    "https://*.aniwatch.to/*",
+    "https://*.zoro.to/*",
+    "https://*.gogoanime.gg/*",
+    "https://*.9anime.to/*",
+    "https://*.aniworld.to/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://*.crunchyroll.com/*"],
+      "js": ["content-scripts/crunchyroll.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.aniwatch.to/*", "https://*.zoro.to/*"],
+      "js": ["content-scripts/aniwatch.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.aniworld.to/*"],
+      "js": ["content-scripts/aniworld.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  }
+}

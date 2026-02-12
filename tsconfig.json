@@ -17,7 +17,8 @@
       "@api/*": ["src/api/*"],
       "@components/*": ["src/components/*"],
       "@pages/*": ["src/pages/*"],
-      "@state/*": ["src/state/*"]
+      "@state/*": ["src/state/*"],
+      "@logic/*": ["src/logic/*"]
     }
   },
   "include": ["src", "electron"]

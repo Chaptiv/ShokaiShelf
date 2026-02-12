@@ -1,56 +1,34 @@
-import { app, BrowserWindow, ipcMain, shell, Menu } from "electron";
+// electron/main.js (ESM, ohne Tag-Scraper)
+import { app, BrowserWindow, ipcMain, shell } from "electron";
+import electronUpdater from "electron-updater";
+const { autoUpdater } = electronUpdater;
 import http from "node:http";
 import path from "node:path";
-import fs from "node:fs"; // <-- RICHTIG IMPORTIEREN
 import { fileURLToPath } from "node:url";
 import Store from "electron-store";
+import { ScrobblerEngine } from "./scrobbler.js";
+import { DiscordPresence } from "./discord.js";
+import { NotificationEngine } from "./notificationEngine.js";
+import { MiruBridge } from "./miruBridge.js";
+// TEMPORARY: Offline mode disabled due to better-sqlite3 compilation issues
+// import { OfflineStore } from "./offlineStore.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const store = new Store();
-const isDev = !app.isPackaged;
+// const offlineStore = new OfflineStore();
+const offlineStore = null; // TEMPORARY
+let scrobbler = null;
+let discord = null;
+let notifications = null;
+let miruBridge = null;
 
-// Menu ausblenden
-Menu.setApplicationMenu(null);
-
-// ════════════════════════════════════════════════════════
-// FIX: Preload-Pfad für Production (CORRECTED)
-// ════════════════════════════════════════════════════════
-function getPreloadPath() {
-  if (isDev) {
-    // Dev: electron/preload.cjs
-    return path.join(__dirname, "preload.cjs");
-  } else {
-    // Production: Mehrere mögliche Pfade
-    const possiblePaths = [
-      path.join(__dirname, "preload.cjs"),
-      path.join(process.resourcesPath, "app.asar.unpacked", "electron", "preload.cjs"),
-      path.join(process.resourcesPath, "preload.cjs"),
-      path.join(app.getAppPath(), "electron", "preload.cjs")
-    ];
-    
-    // Teste welcher existiert
-    for (const p of possiblePaths) {
-      try {
-        if (fs.existsSync(p)) {
-          console.log("[Preload] Using path:", p);
-          return p;
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-    
-    // Fallback zum ersten
-    console.warn("[Preload] No valid path found! Using fallback:", possiblePaths[0]);
-    return possiblePaths[0];
-  }
-}
-
+// Default-Werte – kannst du gerne leeren, wenn du willst
 const DEFAULT_CLIENT_ID = process.env.ANILIST_CLIENT_ID || "";
 const DEFAULT_CLIENT_SECRET = process.env.ANILIST_CLIENT_SECRET || "";
-const DEFAULT_REDIRECT_URI = process.env.ANILIST_REDIRECT_URI || "http://127.0.0.1:43210/callback";
+const DEFAULT_REDIRECT_URI =
+  process.env.ANILIST_REDIRECT_URI || "http://127.0.0.1:43210/callback";
 
 function cfg() {
   return {
@@ -65,7 +43,9 @@ let authHttpServer = null;
 
 /* --------------------- WINDOW --------------------- */
 async function createWindow() {
-  const preloadPath = getPreloadPath(); // <-- USE HELPER
+  const preloadPath = path.join(__dirname, "preload.cjs");
+
+  console.log("Preload path:", preloadPath);
 
   mainWindow = new BrowserWindow({
     width: 1240,
@@ -82,12 +62,14 @@ async function createWindow() {
     },
   });
 
+  const isDev = !app.isPackaged;
+
   if (isDev) {
     try {
       await mainWindow.loadURL("http://localhost:5173");
       mainWindow.webContents.openDevTools({ mode: "detach" });
     } catch (e) {
-      console.warn("Vite dev server not running, loading from dist...");
+      console.warn("Vite dev server not running, falling back to dist...");
       const indexHtml = path.join(__dirname, "..", "dist", "index.html");
       await mainWindow.loadFile(indexHtml);
     }
@@ -139,10 +121,23 @@ function startAuthServer() {
             store.set("anilist.refresh_token", data.refresh_token);
           }
 
-          // Hole User ID und speichere sie
+          // Hole User ID und Username und speichere sie
           const viewer = await validateAccessToken(data.access_token);
           if (viewer?.id) {
             store.set("anilist.user_id", viewer.id);
+          }
+          if (viewer?.name) {
+            store.set("anilist.viewer_name", viewer.name);
+          }
+
+          // Update Notifications with new auth
+          if (notifications) {
+            notifications.updateAuth(data.access_token, viewer?.id?.toString() || null);
+          }
+
+          // Update Discord with new username
+          if (discord && viewer?.name) {
+            discord.updateUsername(viewer.name);
           }
 
           if (mainWindow) {
@@ -318,6 +313,7 @@ function startAuthServer() {
           res.end("login failed");
         }
       } catch (err) {
+        console.error("auth callback failed:", err);
         res.writeHead(500);
         res.end("error");
       }
@@ -329,6 +325,7 @@ function startAuthServer() {
   });
 
   authHttpServer.listen(port, host, () => {
+    console.log(`Auth server listening on http://${host}:${port}/callback`);
   });
 }
 
@@ -348,6 +345,7 @@ async function validateAccessToken(accessToken) {
     const json = await res.json();
     return json?.data?.Viewer ?? null;
   } catch (e) {
+    console.error("validateAccessToken failed:", e);
     return null;
   }
 }
@@ -383,6 +381,13 @@ ipcMain.handle("auth:login", async () => {
 ipcMain.handle("auth:logout", async () => {
   store.delete("anilist.access_token");
   store.delete("anilist.refresh_token");
+  store.delete("anilist.user_id");
+
+  // Update Notifications with cleared auth
+  if (notifications) {
+    notifications.updateAuth(null, null);
+  }
+
   if (mainWindow) {
     mainWindow.webContents.send("auth:updated", { loggedIn: false });
   }
@@ -477,10 +482,435 @@ ipcMain.handle("setup:save", async (_e, { client_id, client_secret, redirect_uri
   return true;
 });
 
+/* --------------------- IPC: SCROBBLER --------------------- */
+ipcMain.handle("scrobbler:getStatus", () => {
+  if (!scrobbler) return { success: false, error: "Scrobbler not initialized" };
+  return { success: true, status: scrobbler.getStatus() };
+});
+
+ipcMain.handle("scrobbler:updateConfig", (_e, cfg) => {
+  if (!scrobbler) return { success: false, error: "Scrobbler not initialized" };
+  return scrobbler.updateConfig(cfg);
+});
+
+ipcMain.handle("scrobbler:debugMatch", async () => {
+  if (!scrobbler) return { error: "Scrobbler not initialized" };
+  return await scrobbler.debugMatch();
+});
+
+ipcMain.handle("scrobbler:confirmMatch", (_e, title, mediaId) => {
+  if (!scrobbler) return { success: false, error: "Scrobbler not initialized" };
+  return scrobbler.confirmMatch(title, mediaId);
+});
+
+ipcMain.handle("scrobbler:removeAlias", (_e, alias) => {
+  if (!scrobbler) return { success: false, error: "Scrobbler not initialized" };
+  return scrobbler.removeAlias(alias);
+});
+
+/* --------------------- IPC: DISCORD RPC --------------------- */
+ipcMain.handle("discord:getStatus", () => {
+  if (!discord) return { error: "Discord not initialized" };
+  return discord.getStatus();
+});
+
+ipcMain.handle("discord:setEnabled", (_e, enabled) => {
+  if (!discord) return { success: false, error: "Discord not initialized" };
+  return discord.setEnabled(enabled);
+});
+
+ipcMain.handle("discord:setActivity", (_e, activity) => {
+  if (!discord) return { success: false, error: "Discord not initialized" };
+  return discord.setActivity(activity);
+});
+
+ipcMain.handle("discord:clearActivity", () => {
+  if (!discord) return { success: false, error: "Discord not initialized" };
+  return discord.clearActivity();
+});
+
+/* --------------------- IPC: NOTIFICATIONS --------------------- */
+ipcMain.handle("system:notify", async (_e, { title, body }) => {
+  const { Notification } = await import("electron");
+  try {
+    if (!Notification.isSupported()) return { success: false };
+    new Notification({ title, body, silent: false }).show();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("miru:status", async () => {
+  if (!miruBridge) return { running: false, connected: false, port: 9876 };
+  return miruBridge.getStatus();
+});
+
+ipcMain.handle("miru:start", async () => {
+  if (!miruBridge) {
+    miruBridge = new MiruBridge();
+  }
+  const success = miruBridge.start();
+  return { success };
+});
+
+ipcMain.handle("miru:stop", async () => {
+  if (miruBridge) {
+    miruBridge.stop();
+  }
+  return { success: true };
+});
+
+ipcMain.handle("notifications:getConfig", () => {
+  if (!notifications) return { error: "Notifications not initialized" };
+  return notifications.getConfig();
+});
+
+ipcMain.handle("notifications:updateConfig", (_e, config) => {
+  if (!notifications) return { success: false, error: "Notifications not initialized" };
+  return notifications.updateConfig(config);
+});
+
+ipcMain.handle("notifications:checkNow", async () => {
+  if (!notifications) return { success: false, error: "Notifications not initialized" };
+  return await notifications.checkNow();
+});
+
+ipcMain.handle("notifications:getHistory", () => {
+  if (!notifications) return [];
+  return notifications.getHistory();
+});
+
+ipcMain.handle("notifications:test", async () => {
+  if (!notifications) return { success: false, error: "Notifications not initialized" };
+  return await notifications.test();
+});
+
+/* --------------------- IPC: OFFLINE MODE --------------------- */
+ipcMain.handle("offline:cacheLibrary", async (_e, userId, entries) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available" };
+  try {
+    offlineStore.cacheLibrary(userId, entries);
+    return { success: true };
+  } catch (err) {
+    console.error("[Main] Cache library failed:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("offline:getCachedLibrary", async (_e, userId) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available", entries: [] };
+  try {
+    const entries = offlineStore.getCachedLibrary(userId);
+    return { success: true, entries };
+  } catch (err) {
+    console.error("[Main] Get cached library failed:", err);
+    return { success: false, error: err.message, entries: [] };
+  }
+});
+
+ipcMain.handle("offline:getCachedEntry", async (_e, userId, mediaId) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available", entry: null };
+  try {
+    const entry = offlineStore.getCachedEntryByMediaId(userId, mediaId);
+    return { success: true, entry };
+  } catch (err) {
+    return { success: false, error: err.message, entry: null };
+  }
+});
+
+ipcMain.handle("offline:updateCachedEntry", async (_e, userId, mediaId, updates) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available" };
+  try {
+    offlineStore.updateCachedEntry(userId, mediaId, updates);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("offline:isCacheValid", async (_e, userId) => {
+  if (!offlineStore) return { success: false, valid: false, lastCacheTime: 0 };
+  try {
+    const valid = offlineStore.isCacheValid(userId);
+    const lastCacheTime = offlineStore.getLastCacheTime(userId);
+    return { success: true, valid, lastCacheTime };
+  } catch (err) {
+    return { success: false, valid: false, lastCacheTime: 0 };
+  }
+});
+
+ipcMain.handle("offline:enqueue", async (_e, userId, action, payload) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available" };
+  try {
+    const id = offlineStore.enqueue(userId, action, payload);
+    return { success: true, id };
+  } catch (err) {
+    console.error("[Main] Enqueue failed:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("offline:getPendingQueue", async (_e, userId) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available", queue: [] };
+  try {
+    const queue = offlineStore.getPendingQueue(userId);
+    return { success: true, queue };
+  } catch (err) {
+    return { success: false, error: err.message, queue: [] };
+  }
+});
+
+ipcMain.handle("offline:getQueueCount", async (_e, userId) => {
+  if (!offlineStore) return 0;
+  try {
+    const count = offlineStore.getQueueCount(userId);
+    return count;
+  } catch (err) {
+    return 0;
+  }
+});
+
+ipcMain.handle("offline:markSynced", async (_e, id) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available" };
+  try {
+    offlineStore.markSynced(id);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("offline:markFailed", async (_e, id, error) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available" };
+  try {
+    offlineStore.markFailed(id, error);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("offline:removeFromQueue", async (_e, id) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available" };
+  try {
+    offlineStore.removeFromQueue(id);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle("offline:processQueueItem", async (_e, id, action, payload) => {
+  if (!offlineStore) return { success: false, error: "Offline mode not available" };
+  try {
+    const accessToken = store.get("anilist.access_token") || store.get("anilist")?.access_token;
+    if (!accessToken) {
+      throw new Error("Not authenticated");
+    }
+
+    if (action === "save") {
+      const mutation = `
+        mutation SaveMediaListEntry($mediaId: Int, $status: MediaListStatus, $progress: Int, $score: Float) {
+          SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress, score: $score) {
+            id
+            status
+            progress
+            score
+          }
+        }
+      `;
+      const response = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          query: mutation,
+          variables: payload,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.errors) {
+        throw new Error(result.errors[0]?.message || "GraphQL error");
+      }
+    } else if (action === "delete") {
+      const mutation = `
+        mutation DeleteMediaListEntry($id: Int) {
+          DeleteMediaListEntry(id: $id) {
+            deleted
+          }
+        }
+      `;
+      const response = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          query: mutation,
+          variables: { id: payload.entryId },
+        }),
+      });
+
+      const result = await response.json();
+      if (result.errors) {
+        throw new Error(result.errors[0]?.message || "GraphQL error");
+      }
+    }
+
+    offlineStore.markSynced(id);
+    return { success: true };
+  } catch (err) {
+    console.error("[Main] Process queue item failed:", err);
+    if (offlineStore) offlineStore.markFailed(id, err.message);
+    throw err;
+  }
+});
+
+/* --------------------- IPC: ACHIEVEMENTS --------------------- */
+ipcMain.handle("achievement:notify", async (_e, achievement) => {
+  const { Notification } = await import("electron");
+  try {
+    if (!Notification.isSupported()) {
+      console.log("[Main] System notifications not supported");
+      return { success: false, error: "Notifications not supported" };
+    }
+
+    const notification = new Notification({
+      title: "Achievement Unlocked!",
+      body: `${achievement.icon} ${achievement.name}\n${achievement.description}`,
+      silent: false,
+    });
+
+    notification.show();
+    console.log("[Main] Achievement notification shown:", achievement.name);
+    return { success: true };
+  } catch (err) {
+    console.error("[Main] Achievement notification error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+/* --------------------- AUTO-UPDATER --------------------- */
+function setupAutoUpdater() {
+  if (!app.isPackaged) {
+    console.log('[Updater] Skipping auto-updater in dev mode');
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = console;
+
+  autoUpdater.on('checking-for-update', () => {
+    sendUpdaterStatus({ status: 'checking' });
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    sendUpdaterStatus({ status: 'available', version: info.version });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    sendUpdaterStatus({ status: 'idle' });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    sendUpdaterStatus({ status: 'downloading', progress: progress.percent });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    sendUpdaterStatus({ status: 'ready', version: info.version });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('[Updater] Error:', err);
+    sendUpdaterStatus({ status: 'error', error: err?.message || 'Unknown error' });
+  });
+
+  // Check for updates after a short delay
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('[Updater] Initial check failed:', err);
+    });
+  }, 10000);
+
+  // Re-check every 2 hours
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch(() => { });
+  }, 2 * 60 * 60 * 1000);
+}
+
+function sendUpdaterStatus(info) {
+  if (mainWindow) {
+    mainWindow.webContents.send('updater:status', info);
+  }
+}
+
+ipcMain.handle('updater:check', async () => {
+  if (!app.isPackaged) return { success: false, error: 'Dev mode' };
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, version: result?.updateInfo?.version };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('updater:install', () => {
+  autoUpdater.quitAndInstall(false, true);
+});
+
 /* --------------------- APP LIFECYCLE --------------------- */
 app.whenReady().then(async () => {
   await createWindow();
   startAuthServer();
+
+  // Initialize Scrobbler
+  scrobbler = new ScrobblerEngine(store);
+  scrobbler.onDetection((candidate) => {
+    if (mainWindow) {
+      mainWindow.webContents.send("scrobbler:detected", candidate);
+    }
+  });
+
+  // Initialize Discord RPC
+  discord = new DiscordPresence(store);
+
+  // Initialize Notifications
+  notifications = new NotificationEngine(store);
+
+  // Initialize Miru Bridge
+  miruBridge = new MiruBridge();
+  miruBridge.start();
+
+  // Forward scrobble events to renderer, checking for known matches first
+  miruBridge.onScrobble((data) => {
+    if (scrobbler) {
+      const knownId = scrobbler.findMatch(data.title);
+      if (knownId) {
+        data.mediaId = knownId;
+        console.log(`[Main] Scrobbler match found: ${data.title} -> ${knownId}`);
+      }
+    }
+
+    if (mainWindow) {
+      mainWindow.webContents.send('miru:scrobble', data);
+    }
+  });
+
+  miruBridge.onConnectionChange((connected) => {
+    console.log(`[Main] Miru extension ${connected ? 'connected' : 'disconnected'}`);
+    if (mainWindow) {
+      mainWindow.webContents.send('miru:connection', { connected });
+    }
+  });
+
+  // Initialize Auto-Updater
+  setupAutoUpdater();
 
   app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -492,5 +922,11 @@ app.whenReady().then(async () => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
+  }
+});
+
+app.on("before-quit", () => {
+  if (offlineStore) {
+    offlineStore.close();
   }
 });

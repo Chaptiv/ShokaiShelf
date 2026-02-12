@@ -16,5 +16,11 @@ contextBridge.exposeInMainWorld("shokai", {
   },
   anilist: {
     graphql: (query, variables) => ipcRenderer.invoke("anilist:graphql", query, variables)
+  },
+  notifications: {
+    getConfig: () => ipcRenderer.invoke("notifications:getConfig"),
+    updateConfig: (config) => ipcRenderer.invoke("notifications:updateConfig", config),
+    checkNow: () => ipcRenderer.invoke("notifications:checkNow"),
+    getHistory: () => ipcRenderer.invoke("notifications:getHistory")
   }
 });

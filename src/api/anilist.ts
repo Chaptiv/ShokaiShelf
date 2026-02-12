@@ -11,7 +11,7 @@
 export type Media = {
   id: number;
   title?: { romaji?: string; english?: string; native?: string };
-  coverImage?: { large?: string; extraLarge?: string };
+  coverImage?: { large?: string; extraLarge?: string; medium?: string };
   bannerImage?: string | null;
   description?: string | null;
   episodes?: number | null;
@@ -24,6 +24,7 @@ export type Media = {
   format?: string | null;
   season?: string | null;
   seasonYear?: number | null;
+  startDate?: { year?: number; month?: number; day?: number } | null;
   studios?: { nodes: { name: string }[] } | null;
   mediaListEntry?: { id?: number; status?: string; progress?: number; score?: number } | null;
 };
@@ -35,6 +36,21 @@ type ScoreFormat =
   | "POINT_5"
   | "POINT_3"
   | string;
+
+export type ActivityEntry = {
+  id: number;
+  type: string;
+  status?: string | null;
+  progress?: number | string | null;
+  createdAt: number;
+  replyCount?: number | null;
+  user?: {
+    id: number;
+    name: string;
+    avatar?: { large?: string | null } | null;
+  } | null;
+  media?: Media | null;
+};
 
 declare global {
   interface Window {
@@ -49,6 +65,33 @@ declare global {
         logout?: () => Promise<void>;
         refresh?: () => Promise<string>;
         onUpdated?: (fn: () => void) => () => void;
+      };
+      notifications?: {
+        getConfig: () => Promise<{
+          running: boolean;
+          config: {
+            enabled: boolean;
+            checkInterval: number;
+            lookbackWindow: number;
+          };
+        } | null>;
+        updateConfig: (config: {
+          enabled?: boolean;
+          checkInterval?: number;
+          lookbackWindow?: number;
+        }) => Promise<{ success: boolean; error?: string }>;
+        checkNow: () => Promise<{ success: boolean; message?: string; error?: string }>;
+        getHistory: () => Promise<{
+          success: boolean;
+          history?: Array<{
+            mediaId: number;
+            episode: number;
+            airingAt: number;
+            notifiedAt: number;
+            title?: string;
+          }>;
+          error?: string;
+        }>;
       };
     };
   }
@@ -233,6 +276,48 @@ export async function mediaDetails(id: number): Promise<Media> {
 
 /* ───────────────── User-abhängige Endpunkte ───────────────── */
 
+export async function userLists(userId: number) {
+  if (!userId) return { lists: [] };
+  const data = await gql<{ MediaListCollection: any }>(
+    `query($userId:Int!){
+      MediaListCollection(userId:$userId, type:ANIME){
+        lists{
+          name
+          isCustomList
+          entries{
+            id
+            progress
+            score
+            status
+            updatedAt
+            startedAt {
+              year
+              month
+              day
+            }
+            completedAt {
+              year
+              month
+              day
+            }
+            media{
+              id
+              title{ romaji english native }
+              coverImage{ large extraLarge }
+              episodes
+              nextAiringEpisode{ airingAt episode }
+              mediaListEntry{ id status progress score }
+            }
+          }
+        }
+      }
+    }`,
+    { userId },
+    /* requireAuth */ true
+  );
+  return data.MediaListCollection || { lists: [] };
+}
+
 export async function viewer() {
   const t = await getAccessToken();
   if (!t) return null;
@@ -259,37 +344,6 @@ export async function viewerCached() {
   return await viewer();
 }
 
-export async function userLists(userId: number) {
-  if (!userId) return { lists: [] };
-  const data = await gql<{ MediaListCollection: any }>(
-    `query($userId:Int!){
-      MediaListCollection(userId:$userId, type:ANIME){
-        lists{
-          name
-          isCustomList
-          entries{
-            id
-            progress
-            score
-            status
-            media{
-              id
-              title{ romaji english native }
-              coverImage{ large extraLarge }
-              episodes
-              nextAiringEpisode{ airingAt episode }
-              mediaListEntry{ id status progress score }
-            }
-          }
-        }
-      }
-    }`,
-    { userId },
-    /* requireAuth */ true
-  );
-  return data.MediaListCollection || { lists: [] };
-}
-
 export async function saveEntry(
   mediaId: number,
   status?: string,
@@ -314,6 +368,84 @@ export async function saveEntry(
     /* requireAuth */ true
   );
   return data.SaveMediaListEntry?.id;
+}
+
+export async function deleteEntry(entryId: number) {
+  // Eintrag entfernen, nur mit Login erlaubt
+  await assertAuthenticated();
+
+  const data = await gql<{ DeleteMediaListEntry: { deleted?: boolean } | null }>(
+    `mutation($id:Int!){
+      DeleteMediaListEntry(id:$id){
+        deleted
+      }
+    }`,
+    { id: entryId },
+    /* requireAuth */ true
+  );
+
+  return !!data.DeleteMediaListEntry?.deleted;
+}
+
+export async function fetchActivityFeed({
+  userId,
+  following = false,
+  perPage = 25,
+}: {
+  userId?: number;
+  following?: boolean;
+  perPage?: number;
+}): Promise<ActivityEntry[]> {
+  // Feed ist nur f�r eingeloggte Nutzer sinnvoll
+  await assertAuthenticated();
+
+  const vars: Record<string, any> = { perPage };
+  if (following) {
+    vars.isFollowing = true;
+  } else if (typeof userId === "number") {
+    vars.userId = userId;
+  }
+
+  const data = await gql<{
+    Page: { activities?: ActivityEntry[] | null } | null;
+  }>(
+    `query($userId:Int,$isFollowing:Boolean,$perPage:Int){
+      Page(page:1, perPage:$perPage){
+        activities(
+          userId:$userId,
+          isFollowing:$isFollowing,
+          type:MEDIA_LIST,
+          sort:ID_DESC
+        ){
+          ... on ListActivity{
+            id
+            type:__typename
+            status
+            progress
+            createdAt
+            replyCount
+            user{
+              id
+              name
+              avatar{ large }
+            }
+            media{
+              id
+              title{ romaji english native }
+              coverImage{ large extraLarge }
+              episodes
+              format
+            }
+          }
+        }
+      }
+    }`,
+    vars,
+    /* requireAuth */ true
+  );
+
+  const list = data.Page?.activities ?? [];
+  return list.filter((a): a is ActivityEntry => Boolean(a));
 }
 
 /* ───────────────── Suche (öffentlich) ───────────────── */
@@ -417,4 +549,126 @@ export async function refreshAniList(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+// ── Social API Stubs (für ActivityCard) ─────────────────
+export async function toggleLike(activityId: number): Promise<any> {
+  const query = `
+    mutation ($activityId: Int) {
+      ToggleLikeV2(id: $activityId, type: ACTIVITY) {
+        ... on ListActivity {
+          id
+          isLiked
+          likeCount
+        }
+        ... on TextActivity {
+          id
+          isLiked
+          likeCount
+        }
+        ... on MessageActivity {
+          id
+          isLiked
+          likeCount
+        }
+      }
+    }
+  `;
+  return await gql(query, { activityId });
+}
+
+export async function fetchActivityReplies(activityId: number): Promise<any> {
+  const query = `
+    query ($activityId: Int!, $page: Int) {
+      Page(page: $page, perPage: 25) {
+        activityReplies(activityId: $activityId) {
+          id
+          text
+          likeCount
+          isLiked
+          createdAt
+          user {
+            id
+            name
+            avatar {
+              large
+            }
+          }
+        }
+      }
+    }
+  `;
+  const result = await gql(query, { activityId, page: 1 });
+  return result?.Page?.activityReplies ?? [];
+}
+
+export async function saveActivityReply(activityId: number, text: string): Promise<any> {
+  const query = `
+    mutation ($activityId: Int, $text: String) {
+      SaveActivityReply(activityId: $activityId, text: $text) {
+        id
+        text
+        likeCount
+        isLiked
+        createdAt
+        user {
+          id
+          name
+          avatar {
+            large
+          }
+        }
+      }
+    }
+  `;
+  return await gql(query, { activityId, text });
+}
+
+export async function saveTextActivity(text: string): Promise<any> {
+  const query = `
+    mutation ($text: String) {
+      SaveTextActivity(text: $text) {
+        id
+        text
+        createdAt
+        user {
+          id
+          name
+          avatar {
+            large
+          }
+        }
+      }
+    }
+  `;
+  return await gql(query, { text });
+}
+
+export async function fetchGlobalActivities(page: number = 1): Promise<any[]> {
+  const query = `
+    query ($page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        activities(sort: ID_DESC, type: TEXT) {
+          ... on TextActivity {
+            id
+            type
+            text
+            createdAt
+            isLiked
+            likeCount
+            replyCount
+            user {
+              id
+              name
+              avatar {
+                large
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const result = await gql(query, { page, perPage: 25 });
+  return result?.Page?.activities ?? [];
 }

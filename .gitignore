@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Node.js
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env
+.env
+release/
+dist/
+*.asar

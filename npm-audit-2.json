@@ -1,0 +1,57 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "electron": {
+      "name": "electron",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        {
+          "source": 1107272,
+          "name": "electron",
+          "dependency": "electron",
+          "title": "Electron has ASAR Integrity Bypass via resource modification",
+          "url": "https://github.com/advisories/GHSA-vmqv-hx8q-j7mg",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-94",
+            "CWE-829"
+          ],
+          "cvss": {
+            "score": 6.1,
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:R/S:U/C:L/I:H/A:L"
+          },
+          "range": "<35.7.5"
+        }
+      ],
+      "effects": [],
+      "range": "<35.7.5",
+      "nodes": [
+        "node_modules/electron"
+      ],
+      "fixAvailable": {
+        "name": "electron",
+        "version": "40.4.0",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 1,
+      "high": 0,
+      "critical": 0,
+      "total": 1
+    },
+    "dependencies": {
+      "prod": 101,
+      "dev": 717,
+      "optional": 84,
+      "peer": 13,
+      "peerOptional": 0,
+      "total": 821
+    }
+  }
+}
