@@ -5,6 +5,7 @@
  * Provides versioning and snapshot capabilities for profile recovery.
  */
 
+import { devLog, devWarn, logError } from "@utils/logger";
 import {
   DreamProfile,
   DynamicWeights,
@@ -72,7 +73,7 @@ export async function initializeDreamProfile(
   v3Entries: MediaListEntry[],
   existingFeedback?: { likes: number[]; dislikes: number[] }
 ): Promise<DreamProfile> {
-  console.log(`[DreamProfileManager] Initializing new profile for ${userId}`);
+  devLog(`[DreamProfileManager] Initializing new profile for ${userId}`);
 
   // Import behavioral metrics calculator (will be implemented in implicit-signals.ts)
   const { calculateAllBehavioralMetrics } = await import('./implicit-signals');
@@ -112,7 +113,7 @@ export async function initializeDreamProfile(
   // Save the new profile
   await saveDreamProfile(profile);
 
-  console.log(`[DreamProfileManager] Profile initialized with confidence: ${confidenceLevel.toFixed(2)}`);
+  devLog(`[DreamProfileManager] Profile initialized with confidence: ${confidenceLevel.toFixed(2)}`);
   return profile;
 }
 
@@ -251,22 +252,22 @@ export async function loadDreamProfile(userId: string): Promise<DreamProfile | n
     const data = await storage.get(key);
 
     if (!data) {
-      console.log(`[DreamProfileManager] No profile found for ${userId}`);
+      devLog(`[DreamProfileManager] No profile found for ${userId}`);
       return null;
     }
 
     if (!isDreamProfile(data)) {
-      console.warn(`[DreamProfileManager] Invalid profile data for ${userId}, returning null`);
+      devWarn(`[DreamProfileManager] Invalid profile data for ${userId}, returning null`);
       return null;
     }
 
     // Validate and potentially upgrade profile version
     const profile = validateAndUpgradeProfile(data);
 
-    console.log(`[DreamProfileManager] Loaded profile for ${userId} (v${profile.version}, confidence: ${profile.confidenceLevel.toFixed(2)})`);
+    devLog(`[DreamProfileManager] Loaded profile for ${userId} (v${profile.version}, confidence: ${profile.confidenceLevel.toFixed(2)})`);
     return profile;
   } catch (error) {
-    console.error(`[DreamProfileManager] Error loading profile for ${userId}:`, error);
+    logError(`[DreamProfileManager] Error loading profile for ${userId}:`, error);
     return null;
   }
 }
@@ -311,14 +312,14 @@ export async function saveDreamProfile(profile: DreamProfile): Promise<void> {
 
   try {
     await storage.set(key, profile);
-    console.log(`[DreamProfileManager] Saved profile for ${profile.userId}`);
+    devLog(`[DreamProfileManager] Saved profile for ${profile.userId}`);
 
     // Create snapshot every 10 learning events
     if (profile.learning.totalEvents % 10 === 0 && profile.learning.totalEvents > 0) {
       await createProfileSnapshot(profile);
     }
   } catch (error) {
-    console.error(`[DreamProfileManager] Error saving profile for ${profile.userId}:`, error);
+    logError(`[DreamProfileManager] Error saving profile for ${profile.userId}:`, error);
     throw error;
   }
 }
@@ -349,9 +350,9 @@ async function createProfileSnapshot(profile: DreamProfile): Promise<void> {
     }
 
     await storage.set(key, existingSnapshots);
-    console.log(`[DreamProfileManager] Created snapshot #${existingSnapshots.length} for ${profile.userId}`);
+    devLog(`[DreamProfileManager] Created snapshot #${existingSnapshots.length} for ${profile.userId}`);
   } catch (error) {
-    console.warn(`[DreamProfileManager] Failed to create snapshot:`, error);
+    devWarn(`[DreamProfileManager] Failed to create snapshot:`, error);
   }
 }
 
@@ -375,7 +376,7 @@ export async function updateDreamProfile(
   profile: DreamProfile,
   event: FeedbackEvent
 ): Promise<DreamProfile> {
-  console.log(`[DreamProfileManager] Updating profile for feedback on media ${event.mediaId}`);
+  devLog(`[DreamProfileManager] Updating profile for feedback on media ${event.mediaId}`);
 
   const updated = { ...profile };
 
@@ -437,7 +438,7 @@ export async function updateDreamProfile(
   if (feedbackCount >= 20 && feedbackCount % 20 === 0) {
     // Trigger cluster retraining (async, non-blocking)
     triggerClusterRetraining(updated).catch(err => {
-      console.warn('[DreamProfileManager] Cluster retraining failed:', err);
+      devWarn('[DreamProfileManager] Cluster retraining failed:', err);
     });
   }
 
@@ -510,7 +511,7 @@ function processGranularReasons(
  * Trigger cluster retraining (async)
  */
 async function triggerClusterRetraining(profile: DreamProfile): Promise<void> {
-  console.log(`[DreamProfileManager] Triggering cluster retraining for ${profile.userId}`);
+  devLog(`[DreamProfileManager] Triggering cluster retraining for ${profile.userId}`);
 
   try {
     const { discoverClusters } = await import('./semantic-clustering');
@@ -529,7 +530,7 @@ async function triggerClusterRetraining(profile: DreamProfile): Promise<void> {
       await saveDreamProfile(profile);
     }
   } catch (error) {
-    console.error('[DreamProfileManager] Cluster retraining error:', error);
+    logError('[DreamProfileManager] Cluster retraining error:', error);
   }
 }
 
@@ -541,7 +542,7 @@ async function triggerClusterRetraining(profile: DreamProfile): Promise<void> {
  * Reset profile to defaults (keeps userId)
  */
 export async function resetDreamProfile(userId: string): Promise<DreamProfile> {
-  console.log(`[DreamProfileManager] Resetting profile for ${userId}`);
+  devLog(`[DreamProfileManager] Resetting profile for ${userId}`);
 
   const profile: DreamProfile = {
     userId,
@@ -578,7 +579,7 @@ export async function deleteDreamProfile(userId: string): Promise<void> {
   await storage.set(STORAGE_KEYS.snapshots(userId), null);
   await storage.set(STORAGE_KEYS.learningLog(userId), null);
 
-  console.log(`[DreamProfileManager] Deleted profile for ${userId}`);
+  devLog(`[DreamProfileManager] Deleted profile for ${userId}`);
 }
 
 /**

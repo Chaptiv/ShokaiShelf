@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "main": "electron/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Chaptiv/ShokaiShelf.git"
+  },
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build:renderer": "vite build",
@@ -46,7 +50,7 @@
     "better-sqlite3": "^12.4.1",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
-    "electron": "^40.4.0",
+    "electron": "^40.4.1",
     "electron-builder": "^26.7.0",
     "eslint": "^9.17.0",
     "globals": "^15.13.0",

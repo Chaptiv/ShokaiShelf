@@ -9,6 +9,8 @@ import { viewerCached, userLists } from '../api/anilist';
 import './Echo.css';
 import appLogo from '../assets/logo.png';
 import * as Icons from './EchoIcons';
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // =============================================================================
 // ICON MAPPINGS
@@ -121,7 +123,7 @@ export default function Echo() {
         const data = await userLists(viewer.id);
         setLibraryData(data?.lists || []);
       } catch (error) {
-        console.error('[Echo] Failed to load data:', error);
+        logError('[Echo] Failed to load data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -152,7 +154,7 @@ export default function Echo() {
         setIsLoading(false);
       })
       .catch(err => {
-        console.error('[Echo] Generation failed:', err);
+        logError('[Echo] Generation failed:', err);
         setIsLoading(false);
       });
   }, [selectedPeriod, periodType, entries, user]);

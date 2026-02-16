@@ -5,6 +5,8 @@
 import type { Media } from "@api/anilist";
 import type { CandidateSource } from "@logic/netrecV3/types";
 import { createEngine, type RecommendationResult } from "@logic/netrecV3";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // ============================================================================
 // TYPES
@@ -30,11 +32,11 @@ export async function getRecommendations(
   userName: string,
   topK: number = 12
 ): Promise<RecEngineResult[]> {
-  console.log("[RecEngine] 🚀 getRecommendations called");
+  devLog("[RecEngine] 🚀 getRecommendations called");
 
   const engine = createEngine();
   const results = await engine.recommend(userName, topK);
-  console.log(`[RecEngine] ✅ V3 returned ${results.length} results`);
+  devLog(`[RecEngine] ✅ V3 returned ${results.length} results`);
 
   return results.map((r) => ({
     media: r.media,

@@ -1,4 +1,6 @@
 // Sync Manager - Coordinates online/offline sync
+import { devLog, devWarn, logError } from "@utils/logger";
+
 // Runs in renderer process, communicates with electron via IPC
 
 export interface SyncResult {
@@ -76,7 +78,7 @@ class SyncManager {
       }
     }, intervalMs);
 
-    console.log('[SyncManager] Auto-sync started');
+    devLog('[SyncManager] Auto-sync started');
   }
 
   stopAutoSync(): void {
@@ -98,7 +100,7 @@ class SyncManager {
       await window.shokai?.offline?.enqueue(userId, 'save', payload);
       this.checkPendingQueue();
     } catch (e) {
-      console.error('[SyncManager] Failed to queue save:', e);
+      logError('[SyncManager] Failed to queue save:', e);
     }
   }
 
@@ -109,7 +111,7 @@ class SyncManager {
       await window.shokai?.offline?.enqueue(userId, 'delete', { entryId, mediaId });
       this.checkPendingQueue();
     } catch (e) {
-      console.error('[SyncManager] Failed to queue delete:', e);
+      logError('[SyncManager] Failed to queue delete:', e);
     }
   }
 
@@ -119,7 +121,7 @@ class SyncManager {
 
   private setupNetworkListeners(): void {
     window.addEventListener('online', () => {
-      console.log('[SyncManager] Online');
+      devLog('[SyncManager] Online');
       this.isOnline = true;
       this.onOnlineStatusChange?.(true);
 
@@ -130,7 +132,7 @@ class SyncManager {
     });
 
     window.addEventListener('offline', () => {
-      console.log('[SyncManager] Offline');
+      devLog('[SyncManager] Offline');
       this.isOnline = false;
       this.onOnlineStatusChange?.(false);
     });
@@ -147,7 +149,7 @@ class SyncManager {
       this.pendingCount = count || 0;
       this.onQueueUpdate?.(this.pendingCount);
     } catch (e) {
-      console.error('[SyncManager] Failed to check queue:', e);
+      logError('[SyncManager] Failed to check queue:', e);
     }
   }
 
@@ -174,7 +176,7 @@ class SyncManager {
         return result;
       }
 
-      console.log(`[SyncManager] Processing ${pending.length} queued actions`);
+      devLog(`[SyncManager] Processing ${pending.length} queued actions`);
 
       for (const item of pending) {
         try {

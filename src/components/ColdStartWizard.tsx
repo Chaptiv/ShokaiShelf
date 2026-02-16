@@ -2,10 +2,11 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MdClose, MdArrowForward, MdCheck } from "react-icons/md";
 import { savePreferences, completeColdStart } from "@logic/preferences-store";
-import { searchAnime } from "@logic/netrecV3";
+import { searchAnime } from "@api/anilist";
 import type { Media } from "@api/anilist";
 import tokens from "@shingen/tokens";
 import { useTranslation } from "react-i18next";
+import { devLog, logError } from "@utils/logger";
 
 const accentColor = (tokens as any)?.colors?.accent ?? "#00d4ff";
 
@@ -69,9 +70,9 @@ export default function ColdStartWizard({ onComplete, onSkip }: ColdStartWizardP
     setSearching(true);
     try {
       const results = await searchAnime(searchQuery);
-      setSearchResults(results as any[]);
+      setSearchResults(results);
     } catch (error) {
-      console.error("[ColdStart] Search failed:", error);
+      logError("[ColdStart] Search failed:", error);
     } finally {
       setSearching(false);
     }

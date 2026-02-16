@@ -6,6 +6,7 @@
  * semantic groupings that the user tends to like or dislike together.
  */
 
+import { devLog, devWarn, logError } from "@utils/logger";
 import {
   DreamProfile,
   TagCluster,
@@ -53,13 +54,13 @@ export async function discoverClusters(
   minClusterSize: number = 3,
   maxClusters: number = 10
 ): Promise<DiscoveredClusters> {
-  console.log(`[SemanticClustering] Starting cluster discovery for ${profile.userId}`);
+  devLog(`[SemanticClustering] Starting cluster discovery for ${profile.userId}`);
 
   // 1. Load feedback data
   const feedbackData = await loadFeedbackData();
 
   if (feedbackData.likes.length + feedbackData.dislikes.length < 10) {
-    console.log(`[SemanticClustering] Not enough feedback data (${feedbackData.likes.length + feedbackData.dislikes.length} entries)`);
+    devLog(`[SemanticClustering] Not enough feedback data (${feedbackData.likes.length + feedbackData.dislikes.length} entries)`);
     return { ...DEFAULT_DISCOVERED_CLUSTERS };
   }
 
@@ -116,7 +117,7 @@ export async function discoverClusters(
     .sort((a, b) => b.coherence - a.coherence)
     .slice(0, maxClusters);
 
-  console.log(`[SemanticClustering] Discovered ${validClusters.length} clusters`);
+  devLog(`[SemanticClustering] Discovered ${validClusters.length} clusters`);
 
   return {
     clusters: validClusters,
@@ -521,7 +522,7 @@ async function loadFeedbackData(): Promise<FeedbackData> {
     const { exportFeedbackForEngine } = await import('../feedback-store');
     return await exportFeedbackForEngine();
   } catch (error) {
-    console.error('[SemanticClustering] Error loading feedback:', error);
+    logError('[SemanticClustering] Error loading feedback:', error);
     return { likes: [], dislikes: [] };
   }
 }
@@ -555,7 +556,7 @@ async function loadMediaDatabase(
       return database;
     }
   } catch (error) {
-    console.warn('[SemanticClustering] Could not load from cache:', error);
+    devWarn('[SemanticClustering] Could not load from cache:', error);
   }
 
   // Fallback: fetch missing data
@@ -576,11 +577,11 @@ async function loadMediaDatabase(
         }
       } catch (err) {
         // Skip individual failures
-        console.warn(`[SemanticClustering] Could not load media ${id}`);
+        devWarn(`[SemanticClustering] Could not load media ${id}`);
       }
     }
   } catch (error) {
-    console.error('[SemanticClustering] Error fetching media details:', error);
+    logError('[SemanticClustering] Error fetching media details:', error);
   }
 
   return database;

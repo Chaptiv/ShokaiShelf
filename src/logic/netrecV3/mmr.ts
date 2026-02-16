@@ -7,6 +7,8 @@
 
 import type { ScoredCandidate } from "./types";
 import { buildTFIDFVector, cosineSimilarity } from "./features";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // ============================================================================
 // MMR ALGORITHM
@@ -109,7 +111,7 @@ export function mmrReRank(
     }
   }
 
-  console.log(`[MMR] Re-ranked ${selected.length} candidates (λ=${lambda})`);
+  devLog(`[MMR] Re-ranked ${selected.length} candidates (λ=${lambda})`);
 
   return selected;
 }
@@ -283,7 +285,7 @@ export function logMMRStats(
   const beforeDiversity = calculateDiversityScore(before.slice(0, 12));
   const afterDiversity = calculateDiversityScore(after);
 
-  console.log(`[MMR] Statistics:
+  devLog(`[MMR] Statistics:
     Lambda: ${lambda}
     Before diversity: ${beforeDiversity.toFixed(3)}
     After diversity: ${afterDiversity.toFixed(3)}
@@ -305,14 +307,14 @@ export function validateMMROutput(
 ): boolean {
   // Check length
   if (output.length > topK) {
-    console.error(`[MMR] Output length ${output.length} exceeds topK ${topK}`);
+    logError(`[MMR] Output length ${output.length} exceeds topK ${topK}`);
     return false;
   }
 
   // Check no duplicates
   const ids = new Set(output.map((r) => r.media.id));
   if (ids.size !== output.length) {
-    console.error("[MMR] Duplicate IDs in output");
+    logError("[MMR] Duplicate IDs in output");
     return false;
   }
 
@@ -320,7 +322,7 @@ export function validateMMROutput(
   const inputIds = new Set(input.map((r) => r.media.id));
   for (const rec of output) {
     if (!inputIds.has(rec.media.id)) {
-      console.error(`[MMR] Output contains ID ${rec.media.id} not in input`);
+      logError(`[MMR] Output contains ID ${rec.media.id} not in input`);
       return false;
     }
   }

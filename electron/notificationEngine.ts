@@ -3,6 +3,7 @@
 
 import { Notification } from 'electron';
 import type Store from 'electron-store';
+import { ShokaiErrorFactory } from './ShokaiErrors.js';
 
 // ============================================================================
 // TYPES
@@ -309,6 +310,15 @@ export class NotificationEngine {
       },
       body: JSON.stringify({ query, variables }),
     });
+
+    // Validate HTTP status before parsing JSON
+    if (!res.ok) {
+      throw ShokaiErrorFactory.httpError(
+        res.status,
+        res.statusText,
+        'https://graphql.anilist.co/notifications'
+      );
+    }
 
     const json = await res.json();
     return json?.data ?? null;

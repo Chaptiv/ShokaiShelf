@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AiOutlinePlus, AiOutlineCheck } from "react-icons/ai";
 import { FeedbackPopover, type FeedbackReason } from "./FeedbackPopover";
 import { type Media } from "../api/anilist";
-import { HeartIcon, ThumbDownIcon } from "./icons/StatusIcons";
+import { HeartIcon, ThumbDownIcon, TvIcon } from "./icons/StatusIcons";
 
 // CSS Keyframes for spinner
 const spinKeyframes = `
@@ -196,6 +196,7 @@ export default function DreamCard({
   const [isProcessingList, setIsProcessingList] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     setListState({
@@ -297,13 +298,18 @@ export default function DreamCard({
             : "0 4px 10px rgba(0,0,0,0.2)",
         }}
       >
-        {cover && (
+        {cover && !imageError && (
           <img
             src={cover}
             alt={title}
             loading="eager"
             decoding="async"
             onLoad={() => setImageLoaded(true)}
+            onError={() => {
+              console.warn(`[DreamCard] Failed to load image for ${media.id}: ${cover}`);
+              setImageLoaded(true); // Hide spinner
+              setImageError(true);   // Show fallback
+            }}
             style={{
               width: "100%",
               height: "100%",
@@ -315,7 +321,7 @@ export default function DreamCard({
           />
         )}
         {/* Placeholder while loading */}
-        {!imageLoaded && (
+        {!imageLoaded && !imageError && (
           <div style={{
             position: "absolute",
             inset: 0,
@@ -332,6 +338,31 @@ export default function DreamCard({
               borderRadius: "50%",
               animation: "spin 1s linear infinite",
             }} />
+          </div>
+        )}
+
+        {/* Fallback for failed images */}
+        {imageError && (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "12px",
+            padding: "20px",
+          }}>
+            <TvIcon style={{ fontSize: "48px", color: "rgba(0, 212, 255, 0.4)" }} />
+            <div style={{
+              fontSize: "12px",
+              color: "rgba(255, 255, 255, 0.5)",
+              textAlign: "center",
+              lineHeight: 1.4,
+            }}>
+              {title}
+            </div>
           </div>
         )}
 

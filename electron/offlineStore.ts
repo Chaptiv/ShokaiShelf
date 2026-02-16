@@ -4,6 +4,7 @@
 import Database from 'better-sqlite3';
 import path from 'node:path';
 import { app } from 'electron';
+import { ShokaiErrorFactory } from './ShokaiErrors.js';
 
 // ============================================================================
 // TYPES
@@ -234,12 +235,27 @@ export class OfflineStore {
       ORDER BY created_at ASC
     `);
 
-    return (stmt.all(userId) as any[]).map(row => ({
-      id: row.id,
-      action: row.action,
-      payload: JSON.parse(row.payload),
-      attempts: row.attempts,
-    }));
+    return (stmt.all(userId) as any[])
+      .map(row => {
+        try {
+          return {
+            id: row.id,
+            action: row.action,
+            payload: JSON.parse(row.payload),
+            attempts: row.attempts,
+          };
+        } catch (error) {
+          const shokaiError = ShokaiErrorFactory.jsonParseError(
+            `sync_queue item ${row.id}`,
+            error
+          );
+          console.error(`[OfflineStore] ${shokaiError.getDisplayMessage()}`);
+          console.error('[OfflineStore] Error details:', JSON.stringify(shokaiError.toJSON(), null, 2));
+          // Skip corrupted entries
+          return null;
+        }
+      })
+      .filter(item => item !== null) as any[];
   }
 
   getQueueCount(userId: string): number {

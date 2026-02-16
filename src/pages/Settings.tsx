@@ -13,6 +13,8 @@ import Settings_Scrobbler from "./Settings_Scrobbler";
 import Settings_Notifications from "./Settings_Notifications";
 import Settings_Discord from "./Settings_Discord";
 import { useSettings } from "../state/SettingsContext";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // ============================================================================
 // DREAM DESIGN TOKENS
@@ -355,7 +357,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
       setShowProgressBars(progress !== false);
 
     } catch (e) {
-      console.error("[Settings] Load error:", e);
+      logError("[Settings] Load error:", e);
       setAuthed(false);
       setMe(null);
       setExpText("");
@@ -381,7 +383,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
       await window.shokai?.store?.set(key, value);
       localStorage.setItem(key, String(value));
     } catch (e) {
-      console.error("[Settings] Failed to save:", e);
+      logError("[Settings] Failed to save:", e);
     }
   }
 

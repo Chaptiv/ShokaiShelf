@@ -5,6 +5,8 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { MdVideogameAsset, MdCheck, MdClose, MdRefresh } from "react-icons/md";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // ============================================================================
 // DREAM DESIGN TOKENS
@@ -157,7 +159,7 @@ export default function Settings_Discord() {
         setCurrentActivity(status.currentActivity);
       }
     } catch (e) {
-      console.error("[Discord Settings] Load error:", e);
+      logError("[Discord Settings] Load error:", e);
     } finally {
       setLoading(false);
     }
@@ -177,7 +179,7 @@ export default function Settings_Discord() {
         await loadStatus();
       }
     } catch (e) {
-      console.error("[Discord] Toggle failed:", e);
+      logError("[Discord] Toggle failed:", e);
     }
   }
 
@@ -186,7 +188,7 @@ export default function Settings_Discord() {
       await (window as any).shokai?.discord?.clearActivity();
       await loadStatus();
     } catch (e) {
-      console.error("[Discord] Clear failed:", e);
+      logError("[Discord] Clear failed:", e);
     }
   }
 

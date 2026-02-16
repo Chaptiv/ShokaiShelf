@@ -125,10 +125,10 @@ export {
  * const results = await engine.recommend("username", 12);
  * 
  * for (const rec of results) {
- *   console.log(rec.media.title.english);
- *   console.log("Score:", rec.score);
- *   console.log("Reasons:", rec.reasons);
- *   console.log("Confidence:", rec.confidence);
+ *   devLog(rec.media.title.english);
+ *   devLog("Score:", rec.score);
+ *   devLog("Reasons:", rec.reasons);
+ *   devLog("Confidence:", rec.confidence);
  * }
  * ```
  */

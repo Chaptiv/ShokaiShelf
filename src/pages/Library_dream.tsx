@@ -35,6 +35,8 @@ import {
   StarIcon, ClockIcon, CalendarIcon
 } from "../components/icons/StatusIcons";
 import OfflineIndicator from "../components/OfflineIndicator";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 type ListStatus = "CURRENT" | "PLANNING" | "COMPLETED" | "PAUSED" | "DROPPED" | "REPEATING";
 type ViewMode = "grid" | "list";
@@ -199,7 +201,7 @@ function LibraryListCard({ entry, onOpen, onUpdate }: { entry: ListEntry; onOpen
       await saveEntry(entry.media.id, entry.status, newProgress);
       onUpdate();
     } catch (err) {
-      console.error("Failed to update progress", err);
+      logError("Failed to update progress", err);
     }
   };
 
@@ -369,12 +371,12 @@ export default function Library_dream() {
       try {
         // @ts-ignore - window.shokai is defined in preload
         await window.shokai?.offline?.cacheLibrary(String(viewer.id), entries);
-        console.log("[Library] Cached", entries.length, "entries for offline use");
+        devLog("[Library] Cached", entries.length, "entries for offline use");
       } catch (cacheErr) {
-        console.warn("[Library] Failed to cache:", cacheErr);
+        devWarn("[Library] Failed to cache:", cacheErr);
       }
     } catch (e) {
-      console.error("[library] Online load failed:", e);
+      logError("[library] Online load failed:", e);
 
       // Fallback to offline cache
       try {
@@ -384,7 +386,7 @@ export default function Library_dream() {
           // @ts-ignore
           const result = await window.shokai?.offline?.getCachedLibrary(String(userId));
           if (result?.entries && result.entries.length > 0) {
-            console.log("[Library] Using offline cache:", result.entries.length, "entries");
+            devLog("[Library] Using offline cache:", result.entries.length, "entries");
             setIsOfflineMode(true);
 
             // Convert cached entries back to ListEntry format
@@ -401,7 +403,7 @@ export default function Library_dream() {
           }
         }
       } catch (offlineErr) {
-        console.error("[Library] Offline fallback failed:", offlineErr);
+        logError("[Library] Offline fallback failed:", offlineErr);
       }
     } finally {
       setLoading(false);
@@ -634,7 +636,7 @@ export default function Library_dream() {
       await deleteEntry(entryId);
       await loadLibrary();
     } catch (e) {
-      console.error("remove failed", e);
+      logError("remove failed", e);
     }
   }, []);
 

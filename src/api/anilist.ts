@@ -6,6 +6,8 @@
 // - Öffentliche Queries ohne Token erlaubt; usergebundene Endpunkte nur mit Token
 // - subscribeAuth löst lokale Cache-Invalidierung aus
 
+import { devLog, devWarn, logError } from "@utils/logger";
+
 /* ───────────────── Types ───────────────── */
 
 export type Media = {
@@ -97,6 +99,103 @@ declare global {
   }
 }
 
+/* ───────────────── Rate Limiter ───────────────── */
+
+const RATE_LIMIT_MAX = 85; // AniList erlaubt 90/min, wir bleiben sicher drunter
+const RATE_LIMIT_WINDOW = 60_000; // 1 Minute
+
+let rlState = {
+  count: 0,
+  resetAt: Date.now() + RATE_LIMIT_WINDOW,
+  backoffUntil: 0,
+};
+
+async function waitForRateLimit(): Promise<void> {
+  const now = Date.now();
+
+  // Backoff aktiv (nach 429)?
+  if (rlState.backoffUntil > now) {
+    const wait = rlState.backoffUntil - now;
+    devWarn(`[AniList] Rate-limit backoff, warte ${wait}ms`);
+
+    // User benachrichtigen
+    notifyRateLimit(wait);
+
+    await new Promise(r => setTimeout(r, wait));
+    return waitForRateLimit();
+  }
+
+  // Fenster zurücksetzen
+  if (now >= rlState.resetAt) {
+    rlState.count = 0;
+    rlState.resetAt = now + RATE_LIMIT_WINDOW;
+  }
+
+  // Limit erreicht?
+  if (rlState.count >= RATE_LIMIT_MAX) {
+    const wait = rlState.resetAt - now;
+    devWarn(`[AniList] Rate-limit erreicht (${rlState.count}/${RATE_LIMIT_MAX}), warte ${wait}ms`);
+
+    // User benachrichtigen
+    notifyRateLimit(wait);
+
+    await new Promise(r => setTimeout(r, wait));
+    return waitForRateLimit();
+  }
+
+  rlState.count++;
+}
+
+function handleRateLimit429(retryAfterSec?: number): void {
+  const backoff = retryAfterSec ? retryAfterSec * 1000 : 60_000;
+  rlState.backoffUntil = Date.now() + backoff;
+  logError(`[AniList] 429 erkannt, Backoff ${backoff}ms`);
+
+  // User benachrichtigen
+  notifyRateLimit(backoff);
+}
+
+/* ───────────────── User Notification ───────────────── */
+
+let lastNotificationTime = 0;
+const NOTIFICATION_THROTTLE = 10_000; // Max 1 Notification alle 10 Sekunden
+
+function notifyRateLimit(waitMs: number): void {
+  const now = Date.now();
+
+  // Throttle Notifications (nicht spammen)
+  if (now - lastNotificationTime < NOTIFICATION_THROTTLE) {
+    return;
+  }
+
+  lastNotificationTime = now;
+
+  const waitSec = Math.ceil(waitMs / 1000);
+  const message = waitSec > 60
+    ? `AniList Rate Limit reached. Waiting ${Math.ceil(waitSec / 60)} minute(s)...`
+    : `AniList Rate Limit reached. Waiting ${waitSec} seconds...`;
+
+  // Browser notification (if available)
+  if (typeof window !== 'undefined' && (window as any).shokai?.app?.notify) {
+    (window as any).shokai.app.notify({
+      title: 'Rate Limit',
+      body: message,
+    });
+  }
+
+  // Dispatch custom event für UI Toast
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('shokai:rate-limit', {
+      detail: { waitMs, message }
+    }));
+  }
+}
+
+/* ───────────────── Caches ───────────────── */
+
+const USERLIST_CACHE_TTL = 5 * 60 * 1000; // 5 Minuten
+let userListCache: { userId: number; data: any; at: number } | null = null;
+
 /* ───────────────── Token-Handling ───────────────── */
 
 const TOKEN_RAM_TTL = 30 * 60 * 1000; // 30 Minuten
@@ -160,6 +259,7 @@ export function subscribeAuth(cb: () => void) {
     // lokale Caches invalidieren
     tokenCache = { token: null, at: 0 };
     cachedViewer = null;
+    userListCache = null;
     // evtl. weitere Memory-Caches leeren
     trendingCache = { at: 0, data: [] };
     searchCache.clear();
@@ -172,6 +272,9 @@ export function subscribeAuth(cb: () => void) {
 /* ───────────────── GQL-Helper ───────────────── */
 
 async function gql<T = any>(query: string, variables?: Record<string, any>, requireAuth = false): Promise<T> {
+  // Rate Limiter: Warten bevor Request abgeschickt wird
+  await waitForRateLimit();
+
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
   const token = await getAccessToken();
@@ -189,11 +292,27 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
   });
 
   if (!res.ok) {
+    // 429 -> Rate Limit! Backoff + Retry
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("Retry-After");
+      handleRateLimit429(retryAfter ? parseInt(retryAfter) : undefined);
+      // Einmal retry nach Backoff
+      await waitForRateLimit();
+      return gql<T>(query, variables, requireAuth);
+    }
     // 401/403 -> lokalen Token-Cache invalidieren, damit UI korrekt reagiert
     if (res.status === 401 || res.status === 403) {
       tokenCache = { token: null, at: 0 };
+      const authError = new Error(`Authentication failed (${res.status})`);
+      (authError as any).code = 'AUTH_FAILED';
+      (authError as any).status = res.status;
+      throw authError;
     }
-    throw new Error(`AniList HTTP ${res.status}`);
+    // Andere HTTP Fehler
+    const httpError = new Error(`AniList API Error (HTTP ${res.status})`);
+    (httpError as any).code = 'HTTP_ERROR';
+    (httpError as any).status = res.status;
+    throw httpError;
   }
 
   const json = await res.json();
@@ -278,6 +397,15 @@ export async function mediaDetails(id: number): Promise<Media> {
 
 export async function userLists(userId: number) {
   if (!userId) return { lists: [] };
+
+  // Cache prüfen (5 Minuten TTL)
+  const now = Date.now();
+  if (userListCache && userListCache.userId === userId && (now - userListCache.at) < USERLIST_CACHE_TTL) {
+    devLog('[AniList] userLists cache HIT');
+    return userListCache.data;
+  }
+
+  devLog('[AniList] userLists cache MISS, fetching...');
   const data = await gql<{ MediaListCollection: any }>(
     `query($userId:Int!){
       MediaListCollection(userId:$userId, type:ANIME){
@@ -315,7 +443,16 @@ export async function userLists(userId: number) {
     { userId },
     /* requireAuth */ true
   );
-  return data.MediaListCollection || { lists: [] };
+  const result = data.MediaListCollection || { lists: [] };
+
+  // Cache speichern
+  userListCache = { userId, data: result, at: now };
+  return result;
+}
+
+/** Cache für userLists invalidieren (z.B. nach Save/Delete) */
+export function invalidateUserListCache(): void {
+  userListCache = null;
 }
 
 export async function viewer() {
@@ -367,6 +504,8 @@ export async function saveEntry(
     { mediaId, status, progress, score },
     /* requireAuth */ true
   );
+  // Cache invalidieren, da Liste sich geändert hat
+  userListCache = null;
   return data.SaveMediaListEntry?.id;
 }
 
@@ -384,6 +523,8 @@ export async function deleteEntry(entryId: number) {
     /* requireAuth */ true
   );
 
+  // Cache invalidieren, da Liste sich geändert hat
+  userListCache = null;
   return !!data.DeleteMediaListEntry?.deleted;
 }
 
@@ -538,6 +679,7 @@ export async function logoutAniList(): Promise<void> {
     // Lokale Caches invalidieren
     tokenCache = { token: null, at: 0 };
     cachedViewer = null;
+    userListCache = null;
   }
 }
 

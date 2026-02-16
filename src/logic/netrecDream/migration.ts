@@ -18,6 +18,8 @@ import {
 import { calculateAllBehavioralMetrics } from './implicit-signals';
 import { saveDreamProfile, loadDreamProfile } from './profile-manager';
 import { discoverClusters } from './semantic-clustering';
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // =============================================================================
 // STORAGE HELPERS
@@ -64,7 +66,7 @@ export async function migrateV3ToDream(
   const warnings: string[] = [];
   const errors: string[] = [];
 
-  console.log(`[Migration] Starting V3 → Dream migration for ${userName}`);
+  devLog(`[Migration] Starting V3 → Dream migration for ${userName}`);
 
   const opts: MigrationOptions = {
     preserveV3Backup: options.preserveV3Backup ?? true,
@@ -76,7 +78,7 @@ export async function migrateV3ToDream(
     // 1. Check if Dream profile already exists
     const existingProfile = await loadDreamProfile(userName);
     if (existingProfile && !opts.forceReinitialize) {
-      console.log(`[Migration] Dream profile already exists, skipping migration`);
+      devLog(`[Migration] Dream profile already exists, skipping migration`);
       return {
         success: true,
         dreamProfile: existingProfile,
@@ -96,7 +98,7 @@ export async function migrateV3ToDream(
     // 3. Create V3 backup if requested
     if (opts.preserveV3Backup) {
       await createV3Backup(userName, v3Data);
-      console.log(`[Migration] V3 backup created`);
+      devLog(`[Migration] V3 backup created`);
     }
 
     // 4. Load existing feedback
@@ -105,7 +107,7 @@ export async function migrateV3ToDream(
       try {
         const { exportFeedbackForEngine } = await import('../feedback-store');
         feedbackData = await exportFeedbackForEngine();
-        console.log(`[Migration] Loaded ${feedbackData.likes.length} likes, ${feedbackData.dislikes.length} dislikes`);
+        devLog(`[Migration] Loaded ${feedbackData.likes.length} likes, ${feedbackData.dislikes.length} dislikes`);
       } catch (err) {
         warnings.push('Could not import existing feedback');
       }
@@ -153,11 +155,11 @@ export async function migrateV3ToDream(
 
     // 9. Discover initial clusters if enough feedback
     if (feedbackData.likes.length + feedbackData.dislikes.length >= 10) {
-      console.log(`[Migration] Discovering initial clusters...`);
+      devLog(`[Migration] Discovering initial clusters...`);
       try {
         const clusters = await discoverClusters(dreamProfile);
         dreamProfile.clusters = clusters;
-        console.log(`[Migration] Discovered ${clusters.clusters.length} clusters`);
+        devLog(`[Migration] Discovered ${clusters.clusters.length} clusters`);
       } catch (err) {
         warnings.push('Cluster discovery failed, will retry later');
       }
@@ -170,7 +172,7 @@ export async function migrateV3ToDream(
     await setMigrationStatus(userName, 'complete');
 
     const duration = Date.now() - startTime;
-    console.log(`[Migration] Complete in ${duration}ms. Confidence: ${confidenceLevel.toFixed(2)}`);
+    devLog(`[Migration] Complete in ${duration}ms. Confidence: ${confidenceLevel.toFixed(2)}`);
 
     return {
       success: true,
@@ -184,7 +186,7 @@ export async function migrateV3ToDream(
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
     errors.push(`Migration failed: ${errMsg}`);
-    console.error(`[Migration] Error:`, error);
+    logError(`[Migration] Error:`, error);
 
     return {
       success: false,
@@ -227,7 +229,7 @@ async function loadV3UserData(userName: string): Promise<V3UserData> {
     return { entries, stats, preferences, feedbacks };
 
   } catch (error) {
-    console.error('[Migration] Error loading V3 data:', error);
+    logError('[Migration] Error loading V3 data:', error);
     return { entries: [] };
   }
 }
@@ -442,7 +444,7 @@ interface MigrationStatusData {
  * Revert to V3 by deleting Dream profile
  */
 export async function revertToV3(userName: string): Promise<boolean> {
-  console.log(`[Migration] Reverting ${userName} to V3...`);
+  devLog(`[Migration] Reverting ${userName} to V3...`);
 
   try {
     const storage = getStorage();
@@ -459,11 +461,11 @@ export async function revertToV3(userName: string): Promise<boolean> {
     // Reset migration status
     await setMigrationStatus(userName, 'not_started');
 
-    console.log(`[Migration] Reverted to V3 successfully`);
+    devLog(`[Migration] Reverted to V3 successfully`);
     return true;
 
   } catch (error) {
-    console.error(`[Migration] Revert failed:`, error);
+    logError(`[Migration] Revert failed:`, error);
     return false;
   }
 }
@@ -506,7 +508,7 @@ export async function checkAndMigrate(userName: string): Promise<{
 
   if (status === 'complete') {
     // Migration complete but profile missing? Re-migrate
-    console.log(`[Migration] Profile missing after complete status, re-migrating...`);
+    devLog(`[Migration] Profile missing after complete status, re-migrating...`);
   }
 
   // Perform migration

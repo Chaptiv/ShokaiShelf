@@ -9,6 +9,8 @@
 
 import type { ScoredCandidate, Media, Features, MediaListEntry } from "./types";
 import i18n from "i18next";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // Shorthand
 const t = (key: string, opts?: Record<string, any>) => i18n.t(key, opts);
@@ -556,7 +558,7 @@ export function isSpoilerFree(explanation: string, media: Media): boolean {
 
   for (const tag of spoilerTags) {
     if (explanation.toLowerCase().includes(tag.name.toLowerCase())) {
-      console.warn(`[Explain] Spoiler detected: ${tag.name}`);
+      devWarn(`[Explain] Spoiler detected: ${tag.name}`);
       return false;
     }
   }

@@ -288,6 +288,7 @@ export interface EngineConfig {
   // Filtering
   filterAdult: boolean;
   filterSpoilers: boolean;
+  minScoreThreshold: number; // Minimum score (0-1) to include in results
 
   // Caching
   cacheEnabled: boolean;
@@ -334,6 +335,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
 
   filterAdult: true,
   filterSpoilers: true,
+  minScoreThreshold: 0.20, // Filter out recommendations below 20/100 points
 
   cacheEnabled: true,
   cacheTTL: 24 * 60 * 60 * 1000, // 24 hours

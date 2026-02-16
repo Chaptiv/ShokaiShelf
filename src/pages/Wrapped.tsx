@@ -7,6 +7,8 @@ import { generateWrapped, getAvailablePeriods } from '../logic/wrapped/wrapped-e
 import { shareWrapped, copyWrappedToClipboard } from '../logic/wrapped/share-wrapped';
 import { viewerCached, userLists } from '../api/anilist';
 import './Wrapped.css';
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // -----------------------------------------------------------------------------
 // Data Helpers
@@ -67,7 +69,7 @@ export default function Wrapped() {
         const data = await userLists(viewer.id);
         setLibraryData(data?.lists || []);
       } catch (error) {
-        console.error('[Wrapped] Failed to load library:', error);
+        logError('[Wrapped] Failed to load library:', error);
       } finally {
         setIsLoading(false);
       }
@@ -97,7 +99,7 @@ export default function Wrapped() {
         setIsLoading(false);
       })
       .catch(err => {
-        console.error('[Wrapped] Generation failed:', err);
+        logError('[Wrapped] Generation failed:', err);
         setIsLoading(false);
       });
   }, [selectedPeriod, periodType, entries, viewerId]);

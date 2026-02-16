@@ -11,6 +11,8 @@ import { AiOutlineSearch, AiOutlineClose } from "react-icons/ai";
 import FeedbackModalV4 from "../components/FeedbackModalV4";
 import { getDreamEngine } from "../logic/netrecDream";
 import type { GranularReason } from "../logic/netrecDream/dream-types";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // Debounce Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -313,7 +315,7 @@ export default function SearchDream() {
       saveRecentSearch(searchQuery);
       setRecentSearches(getRecentSearches());
     } catch (e) {
-      console.error("Search error:", e);
+      logError("Search error:", e);
     } finally {
       setIsSearching(false);
     }
@@ -327,7 +329,7 @@ export default function SearchDream() {
       const res = await searchAnime(genre, 40);
       setResults(res);
     } catch (e) {
-      console.error("Vibe search error:", e);
+      logError("Vibe search error:", e);
     } finally {
       setIsSearching(false);
     }
@@ -478,7 +480,7 @@ export default function SearchDream() {
         )
       );
     } catch (e) {
-      console.error("remove failed", e);
+      logError("remove failed", e);
     }
   }, []);
 
@@ -488,7 +490,7 @@ export default function SearchDream() {
       const details = await mediaDetails(id);
       setSelectedMedia(details);
     } catch (e) {
-      console.error("Failed to load media details:", e);
+      logError("Failed to load media details:", e);
     }
   }, []);
 

@@ -5,6 +5,8 @@
  */
 
 import type { Media, Candidate, MediaListEntry, UserPreferences } from "./types";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // ============================================================================
 // CORE FILTERS
@@ -44,6 +46,22 @@ export function filterMusic(
   candidates: Candidate[]
 ): Candidate[] {
   return candidates.filter((c) => c.media.format !== "MUSIC");
+}
+
+/**
+ * Filter media without valid cover images
+ * Prevents infinite loading spinner for broken/missing images
+ */
+export function filterInvalidCoverImages(
+  candidates: Candidate[]
+): Candidate[] {
+  return candidates.filter((c) => {
+    const hasValidCover = !!(c.media.coverImage?.large || c.media.coverImage?.extraLarge);
+    if (!hasValidCover) {
+      devWarn(`[Filters] Removing media ${c.media.id} due to missing cover image`);
+    }
+    return hasValidCover;
+  });
 }
 
 /**
@@ -204,46 +222,50 @@ export function applyFilters(
 
   // 1. Deduplicate first
   filtered = deduplicate(filtered);
-  console.log(`[Filter] After dedupe: ${filtered.length}`);
+  devLog(`[Filter] After dedupe: ${filtered.length}`);
 
   // 2. Remove completed/current
   filtered = filterCompleted(filtered, entries);
-  console.log(`[Filter] After completed: ${filtered.length}`);
+  devLog(`[Filter] After completed: ${filtered.length}`);
 
   // 3. Filter adult content
   const showAdult = preferences?.showAdult ?? false;
   filtered = filterAdult(filtered, showAdult);
-  console.log(`[Filter] After adult: ${filtered.length}`);
+  devLog(`[Filter] After adult: ${filtered.length}`);
 
   // 4. Filter music videos
   filtered = filterMusic(filtered);
-  console.log(`[Filter] After music: ${filtered.length}`);
+  devLog(`[Filter] After music: ${filtered.length}`);
 
-  // 5. Filter spoiler tags (cleaning only)
+  // 5. Filter invalid cover images
+  filtered = filterInvalidCoverImages(filtered);
+  devLog(`[Filter] After cover image validation: ${filtered.length}`);
+
+  // 6. Filter spoiler tags (cleaning only)
   filtered = filterSpoilerTags(filtered, true);
 
-  // 6. Filter excluded genres
+  // 7. Filter excluded genres
   if (preferences?.excludeGenres) {
     filtered = filterGenres(filtered, preferences.excludeGenres);
-    console.log(`[Filter] After genre exclusions: ${filtered.length}`);
+    devLog(`[Filter] After genre exclusions: ${filtered.length}`);
   }
 
-  // 7. Filter excluded tags
+  // 8. Filter excluded tags
   if (preferences?.excludeTags) {
     filtered = filterTags(filtered, preferences.excludeTags);
-    console.log(`[Filter] After tag exclusions: ${filtered.length}`);
+    devLog(`[Filter] After tag exclusions: ${filtered.length}`);
   }
 
-  // 8. Filter excluded studios (NEW!)
+  // 9. Filter excluded studios (NEW!)
   if (preferences?.excludeStudios) {
     filtered = filterStudios(filtered, preferences.excludeStudios);
-    console.log(`[Filter] After studio exclusions: ${filtered.length}`);
+    devLog(`[Filter] After studio exclusions: ${filtered.length}`);
   }
 
-  // 9. Filter "Never Show" list (NEW!)
+  // 10. Filter "Never Show" list (NEW!)
   if (preferences?.neverShow) {
     filtered = filterNeverShow(filtered, preferences.neverShow);
-    console.log(`[Filter] After never-show list: ${filtered.length}`);
+    devLog(`[Filter] After never-show list: ${filtered.length}`);
   }
 
   return filtered;
@@ -333,7 +355,7 @@ export function logFilterStats(
   const removed = original - afterFilters;
   const removedPercent = ((removed / original) * 100).toFixed(1);
 
-  console.log(`[Filter] Stats:
+  devLog(`[Filter] Stats:
     Original: ${original}
     After filters: ${afterFilters}
     Removed: ${removed} (${removedPercent}%)

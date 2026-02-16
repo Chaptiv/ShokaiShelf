@@ -21,6 +21,7 @@ import {
   PlayIcon, CheckIcon, PauseIcon, XIcon, ClipboardIcon,
   StarIcon, FireIcon, TvIcon, CalendarIcon
 } from "./icons/StatusIcons";
+import { sanitizeAniListHTML } from "../utils/sanitize";
 
 type ScoreFormat = "POINT_100" | "POINT_10" | "POINT_10_DECIMAL" | "POINT_5" | "POINT_3" | string;
 
@@ -73,7 +74,7 @@ export default function MediaDetailView_dream({
 
   const cover = media.coverImage?.extraLarge || media.coverImage?.large;
   const banner = media.bannerImage;
-  const desc = sanitizeHtml((media as any).description);
+  const desc = sanitizeAniListHTML((media as any).description) || t("mediaDetail.noDescription", "No description available.");
   const avgScore = (media as any).averageScore;
   const popularity = (media as any).popularity;
   const genres = ((media as any).genres as string[]) || [];
@@ -819,24 +820,6 @@ function StatCard({ label, value, icon, color }: { label: string; value: string;
 }
 
 // Helper Functions
-function sanitizeHtml(input?: string) {
-  if (!input) return "Keine Beschreibung verfügbar.";
-  const allowed = new Set(["B", "STRONG", "I", "EM", "BR", "P"]);
-  const doc = new DOMParser().parseFromString(String(input), "text/html");
-  function walk(n: Node): string {
-    if (n.nodeType === Node.TEXT_NODE) return n.textContent || "";
-    if (n.nodeType === Node.ELEMENT_NODE) {
-      const el = n as HTMLElement;
-      const tag = el.tagName.toUpperCase();
-      if (!allowed.has(tag)) return Array.from(el.childNodes).map(walk).join("");
-      if (tag === "BR") return "<br />";
-      return Array.from(el.childNodes).map(walk).join("");
-    }
-    return "";
-  }
-  return Array.from(doc.body.childNodes).map(walk).join("") || "Keine Beschreibung verfügbar.";
-}
-
 function getScoreBounds(format?: ScoreFormat): { min: number; max: number; step: number } {
   if (!format) return { min: 0, max: 10, step: 1 };
   if (format === "POINT_100") return { min: 0, max: 100, step: 1 };

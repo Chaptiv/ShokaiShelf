@@ -17,6 +17,8 @@ import type {
 } from './echo-types';
 import { GENRE_STYLES, PERSONAS } from './echo-types';
 import { generateEchoFunFacts } from './echo-fun-facts';
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // =============================================================================
 // MAIN GENERATION
@@ -209,7 +211,7 @@ function calculateGenreAffinity(
 
   // If no genres found, return empty array
   if (total === 0) {
-    console.warn('[Echo] No genres found in period entries');
+    devWarn('[Echo] No genres found in period entries');
     return [];
   }
 
@@ -858,7 +860,7 @@ function filterEntriesByPeriod(
     return false;
   });
 
-  console.log(`[Echo] Filtered ${filtered.length} entries for period ${period} (${type})`);
+  devLog(`[Echo] Filtered ${filtered.length} entries for period ${period} (${type})`);
   return filtered;
 }
 

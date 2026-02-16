@@ -5,6 +5,8 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { MdNotifications, MdRefresh, MdHistory, MdPlayArrow, MdCheck, MdClose } from "react-icons/md";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // ============================================================================
 // DREAM DESIGN TOKENS
@@ -263,7 +265,7 @@ export default function Settings_Notifications() {
         setRunning(status.running);
       }
     } catch (e) {
-      console.error("[Notifications] Load config failed:", e);
+      logError("[Notifications] Load config failed:", e);
     } finally {
       setLoading(false);
     }
@@ -274,7 +276,7 @@ export default function Settings_Notifications() {
       const hist = await window.shokai?.notifications?.getHistory();
       setHistory(hist || []);
     } catch (e) {
-      console.error("[Notifications] Load history failed:", e);
+      logError("[Notifications] Load history failed:", e);
     }
   }
 
@@ -293,7 +295,7 @@ export default function Settings_Notifications() {
         setRunning(status.running);
       }
     } catch (e) {
-      console.error("[Notifications] Update failed:", e);
+      logError("[Notifications] Update failed:", e);
     }
   }
 

@@ -6,6 +6,8 @@
 
 import type { Media, MediaListEntry, UserStats } from "./types";
 import { cachedFetch, batchFetch, rateLimiter } from "./cache";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 const ANILIST_API = "https://graphql.anilist.co";
 
@@ -35,7 +37,7 @@ async function query<T>(gql: string, variables: any = {}): Promise<T> {
     if (response.status === 429) {
       const retryAfter = response.headers.get("Retry-After");
       rateLimiter.handle429(retryAfter ? parseInt(retryAfter) : undefined);
-      console.error("[Query] 429 Rate Limit Hit - backing off");
+      logError("[Query] 429 Rate Limit Hit - backing off");
 
       // Retry after backoff
       await rateLimiter.checkLimit();
@@ -48,7 +50,7 @@ async function query<T>(gql: string, variables: any = {}): Promise<T> {
   const json = await response.json();
 
   if (json.errors) {
-    console.error("[GraphQL] Errors:", json.errors);
+    logError("[GraphQL] Errors:", json.errors);
     throw new Error(json.errors[0]?.message || "GraphQL Error");
   }
 
@@ -143,7 +145,7 @@ export async function fetchUserLibrary(userName: string): Promise<MediaListEntry
         entries.push(...list.entries);
       }
 
-      console.log(`[Query] Fetched ${entries.length} entries for ${userName}`);
+      devLog(`[Query] Fetched ${entries.length} entries for ${userName}`);
       return entries;
     }
   );
@@ -194,7 +196,7 @@ export async function fetchUserStats(userName: string): Promise<UserStats> {
         User: { statistics: { anime: UserStats } };
       }>(USER_STATS_QUERY, { userName });
 
-      console.log(`[Query] Fetched stats for ${userName}`);
+      devLog(`[Query] Fetched stats for ${userName}`);
       return data.User.statistics.anime;
     }
   );
@@ -306,7 +308,7 @@ export async function fetchRecommendations(
     map.set(result.id, result.recs);
   }
 
-  console.log(`[Query] Fetched recommendations for ${limitedSeeds.length} seeds`);
+  devLog(`[Query] Fetched recommendations for ${limitedSeeds.length} seeds`);
   return map;
 }
 
@@ -371,7 +373,7 @@ export async function fetchTrending(perPage: number = 50): Promise<Media[]> {
         Page: { media: Media[] };
       }>(TRENDING_QUERY, { perPage });
 
-      console.log(`[Query] Fetched ${data.Page.media.length} trending anime`);
+      devLog(`[Query] Fetched ${data.Page.media.length} trending anime`);
       return data.Page.media;
     }
   );
@@ -445,7 +447,7 @@ export async function fetchMediaDetails(id: number): Promise<Media> {
     id,
     async () => {
       const data = await query<{ Media: Media }>(MEDIA_DETAILS_QUERY, { id });
-      console.log(`[Query] Fetched details for media ${id}`);
+      devLog(`[Query] Fetched details for media ${id}`);
       return data.Media;
     }
   );
@@ -481,6 +483,6 @@ export async function searchAnime(searchTerm: string): Promise<Media[]> {
     Page: { media: Media[] };
   }>(SEARCH_QUERY, { search: searchTerm });
 
-  console.log(`[Query] Search "${searchTerm}" returned ${data.Page.media.length} results`);
+  devLog(`[Query] Search "${searchTerm}" returned ${data.Page.media.length} results`);
   return data.Page.media;
 }

@@ -34,6 +34,8 @@ import { buildFeatures, extractUserPreferences, buildTFIDFVector, cosineSimilari
 import { applyFilters } from '../netrecV3/filters';
 import { mmrReRank, adaptiveLambda, calculateDiversityScore } from '../netrecV3/mmr';
 import { generateReasons, calculateConfidence } from '../netrecV3/explain';
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // =============================================================================
 // DREAM ENGINE CLASS
@@ -45,7 +47,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
 
   constructor(config?: Partial<EngineConfig>) {
     super(config);
-    console.log(`[NetRecDream] Dream Engine V${DREAM_VERSION.major}.${DREAM_VERSION.minor} initialized`);
+    devLog(`[NetRecDream] Dream Engine V${DREAM_VERSION.major}.${DREAM_VERSION.minor} initialized`);
   }
 
   /**
@@ -55,18 +57,18 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
     userName: string,
     topK: number = 12
   ): Promise<DreamRecommendationResult[]> {
-    console.log(`[NetRecDream] Starting Dream recommendation for ${userName}`);
+    devLog(`[NetRecDream] Starting Dream recommendation for ${userName}`);
 
     // 1. Load/Initialize DreamProfile
     await this.loadOrInitializeDreamProfile(userName);
 
     // 2. Run V3 base recommendation pipeline
     const v3Profile = await this.loadUserProfile(userName);
-    console.log(`[NetRecDream] Loaded ${v3Profile.entries.length} entries`);
+    devLog(`[NetRecDream] Loaded ${v3Profile.entries.length} entries`);
 
     // 3. Generate candidates
     const candidates = await this.generateCandidates(v3Profile);
-    console.log(`[NetRecDream] Generated ${candidates.length} candidates`);
+    devLog(`[NetRecDream] Generated ${candidates.length} candidates`);
 
     // 4. Filter candidates
     const filtered = applyFilters(
@@ -74,11 +76,11 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
       v3Profile.entries,
       v3Profile.preferences
     );
-    console.log(`[NetRecDream] After filtering: ${filtered.length}`);
+    devLog(`[NetRecDream] After filtering: ${filtered.length}`);
 
     // 5. Score with Dream scoring
     const scored = this.scoreCandidatesWithDream(filtered, v3Profile);
-    console.log(`[NetRecDream] Scored ${scored.length} candidates`);
+    devLog(`[NetRecDream] Scored ${scored.length} candidates`);
 
     // 6. Sort by dream score
     scored.sort((a, b) => b.scores.final - a.scores.final);
@@ -90,7 +92,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
       mode
     );
     const reranked = mmrReRank(scored, lambda, topK * 2);
-    console.log(`[NetRecDream] Re-ranked to ${reranked.length} results`);
+    devLog(`[NetRecDream] Re-ranked to ${reranked.length} results`);
 
     // 8. Create Dream results
     const results = this.createDreamResults(reranked.slice(0, topK), v3Profile);
@@ -98,7 +100,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
     // 9. Log diversity and confidence
     const diversityScore = calculateDiversityScore(reranked);
     const avgConfidence = results.reduce((sum, r) => sum + r.dreamConfidence, 0) / results.length;
-    console.log(`[NetRecDream] Diversity: ${diversityScore.toFixed(3)}, Avg Confidence: ${avgConfidence.toFixed(0)}%`);
+    devLog(`[NetRecDream] Diversity: ${diversityScore.toFixed(3)}, Avg Confidence: ${avgConfidence.toFixed(0)}%`);
 
     return results;
   }
@@ -110,7 +112,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
     this.dreamProfile = await loadDreamProfile(userName);
 
     if (!this.dreamProfile) {
-      console.log(`[NetRecDream] No Dream profile found, initializing...`);
+      devLog(`[NetRecDream] No Dream profile found, initializing...`);
 
       // Get V3 entries for initialization
       const v3Profile = await this.loadUserProfile(userName);
@@ -126,9 +128,9 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
         existingFeedback
       );
 
-      console.log(`[NetRecDream] Dream profile initialized with confidence: ${this.dreamProfile.confidenceLevel.toFixed(2)}`);
+      devLog(`[NetRecDream] Dream profile initialized with confidence: ${this.dreamProfile.confidenceLevel.toFixed(2)}`);
     } else {
-      console.log(`[NetRecDream] Loaded Dream profile (v${this.dreamProfile.version}, confidence: ${this.dreamProfile.confidenceLevel.toFixed(2)})`);
+      devLog(`[NetRecDream] Loaded Dream profile (v${this.dreamProfile.version}, confidence: ${this.dreamProfile.confidenceLevel.toFixed(2)})`);
     }
   }
 
@@ -141,7 +143,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
   ): DreamScoredCandidate[] {
     if (!this.dreamProfile) {
       // Fallback to V3 scoring
-      console.warn('[NetRecDream] No Dream profile, using V3 scoring');
+      devWarn('[NetRecDream] No Dream profile, using V3 scoring');
       return this.scoreCandidates(candidates, profile) as DreamScoredCandidate[];
     }
 
@@ -280,7 +282,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
   ): Promise<void> {
     if (!this.dreamProfile || !feedbackType) return;
 
-    console.log(`[NetRecDream] Processing feedback: ${feedbackType} for media ${mediaId}`);
+    devLog(`[NetRecDream] Processing feedback: ${feedbackType} for media ${mediaId}`);
 
     // Get prediction if available
     let prediction = this.lastPredictions.get(mediaId);
@@ -288,7 +290,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
     // IMPROVEMENT: If no prediction in RAM (e.g., after app restart), generate one on-the-fly
     // This allows the engine to learn even for feedback given on anime recommended in a previous session
     if (!prediction && mediaData) {
-      console.log(`[NetRecDream] No cached prediction, generating on-the-fly...`);
+      devLog(`[NetRecDream] No cached prediction, generating on-the-fly...`);
 
       // Build a minimal media object from the provided data
       const reconstructedMedia = {
@@ -348,12 +350,12 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
     // This keeps the clusters fresh as the user's taste evolves
     const totalFeedback = this.dreamProfile.learning.events.filter(e => e.type === 'feedback_received').length;
     if (totalFeedback > 0 && totalFeedback % 50 === 0) {
-      console.log(`[NetRecDream] Triggering periodic cluster retraining (${totalFeedback} feedbacks)...`);
+      devLog(`[NetRecDream] Triggering periodic cluster retraining (${totalFeedback} feedbacks)...`);
       // Fire & forget - don't block UI
-      this.retrainClusters().catch(err => console.error('[NetRecDream] Cluster retraining failed:', err));
+      this.retrainClusters().catch(err => logError('[NetRecDream] Cluster retraining failed:', err));
     }
 
-    console.log(`[NetRecDream] Profile updated, confidence: ${this.dreamProfile.confidenceLevel.toFixed(2)}`);
+    devLog(`[NetRecDream] Profile updated, confidence: ${this.dreamProfile.confidenceLevel.toFixed(2)}`);
   }
 
   /**
@@ -426,7 +428,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
   async retrainClusters(): Promise<void> {
     if (!this.dreamProfile) return;
 
-    console.log(`[NetRecDream] Force retraining clusters...`);
+    devLog(`[NetRecDream] Force retraining clusters...`);
 
     const { discoverClusters } = await import('./semantic-clustering');
     const newClusters = await discoverClusters(this.dreamProfile);
@@ -434,7 +436,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
     if (newClusters.clusters.length > 0) {
       this.dreamProfile.clusters = newClusters;
       await saveDreamProfile(this.dreamProfile);
-      console.log(`[NetRecDream] Retrained ${newClusters.clusters.length} clusters`);
+      devLog(`[NetRecDream] Retrained ${newClusters.clusters.length} clusters`);
     }
   }
 
@@ -444,7 +446,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
   async resetProfile(userId: string): Promise<void> {
     const { resetDreamProfile } = await import('./profile-manager');
     this.dreamProfile = await resetDreamProfile(userId);
-    console.log(`[NetRecDream] Profile reset for ${userId}`);
+    devLog(`[NetRecDream] Profile reset for ${userId}`);
   }
 }
 

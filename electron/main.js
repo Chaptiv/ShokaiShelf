@@ -10,6 +10,7 @@ import { ScrobblerEngine } from "./scrobbler.js";
 import { DiscordPresence } from "./discord.js";
 import { NotificationEngine } from "./notificationEngine.js";
 import { MiruBridge } from "./miruBridge.js";
+import { devLog, devWarn, logError } from "./utils/logger.js";
 // TEMPORARY: Offline mode disabled due to better-sqlite3 compilation issues
 // import { OfflineStore } from "./offlineStore.js";
 
@@ -45,7 +46,7 @@ let authHttpServer = null;
 async function createWindow() {
   const preloadPath = path.join(__dirname, "preload.cjs");
 
-  console.log("Preload path:", preloadPath);
+  devLog("Preload path:", preloadPath);
 
   mainWindow = new BrowserWindow({
     width: 1240,
@@ -69,7 +70,7 @@ async function createWindow() {
       await mainWindow.loadURL("http://localhost:5173");
       mainWindow.webContents.openDevTools({ mode: "detach" });
     } catch (e) {
-      console.warn("Vite dev server not running, falling back to dist...");
+      devWarn("Vite dev server not running, falling back to dist...");
       const indexHtml = path.join(__dirname, "..", "dist", "index.html");
       await mainWindow.loadFile(indexHtml);
     }
@@ -313,7 +314,7 @@ function startAuthServer() {
           res.end("login failed");
         }
       } catch (err) {
-        console.error("auth callback failed:", err);
+        logError("auth callback failed:", err);
         res.writeHead(500);
         res.end("error");
       }
@@ -325,7 +326,7 @@ function startAuthServer() {
   });
 
   authHttpServer.listen(port, host, () => {
-    console.log(`Auth server listening on http://${host}:${port}/callback`);
+    devLog(`Auth server listening on http://${host}:${port}/callback`);
   });
 }
 
@@ -345,7 +346,7 @@ async function validateAccessToken(accessToken) {
     const json = await res.json();
     return json?.data?.Viewer ?? null;
   } catch (e) {
-    console.error("validateAccessToken failed:", e);
+    logError("validateAccessToken failed:", e);
     return null;
   }
 }
@@ -593,7 +594,7 @@ ipcMain.handle("offline:cacheLibrary", async (_e, userId, entries) => {
     offlineStore.cacheLibrary(userId, entries);
     return { success: true };
   } catch (err) {
-    console.error("[Main] Cache library failed:", err);
+    logError("[Main] Cache library failed:", err);
     return { success: false, error: err.message };
   }
 });
@@ -604,7 +605,7 @@ ipcMain.handle("offline:getCachedLibrary", async (_e, userId) => {
     const entries = offlineStore.getCachedLibrary(userId);
     return { success: true, entries };
   } catch (err) {
-    console.error("[Main] Get cached library failed:", err);
+    logError("[Main] Get cached library failed:", err);
     return { success: false, error: err.message, entries: [] };
   }
 });
@@ -646,7 +647,7 @@ ipcMain.handle("offline:enqueue", async (_e, userId, action, payload) => {
     const id = offlineStore.enqueue(userId, action, payload);
     return { success: true, id };
   } catch (err) {
-    console.error("[Main] Enqueue failed:", err);
+    logError("[Main] Enqueue failed:", err);
     return { success: false, error: err.message };
   }
 });
@@ -765,7 +766,7 @@ ipcMain.handle("offline:processQueueItem", async (_e, id, action, payload) => {
     offlineStore.markSynced(id);
     return { success: true };
   } catch (err) {
-    console.error("[Main] Process queue item failed:", err);
+    logError("[Main] Process queue item failed:", err);
     if (offlineStore) offlineStore.markFailed(id, err.message);
     throw err;
   }
@@ -776,7 +777,7 @@ ipcMain.handle("achievement:notify", async (_e, achievement) => {
   const { Notification } = await import("electron");
   try {
     if (!Notification.isSupported()) {
-      console.log("[Main] System notifications not supported");
+      devLog("[Main] System notifications not supported");
       return { success: false, error: "Notifications not supported" };
     }
 
@@ -787,10 +788,10 @@ ipcMain.handle("achievement:notify", async (_e, achievement) => {
     });
 
     notification.show();
-    console.log("[Main] Achievement notification shown:", achievement.name);
+    devLog("[Main] Achievement notification shown:", achievement.name);
     return { success: true };
   } catch (err) {
-    console.error("[Main] Achievement notification error:", err);
+    logError("[Main] Achievement notification error:", err);
     return { success: false, error: err.message };
   }
 });
@@ -798,7 +799,7 @@ ipcMain.handle("achievement:notify", async (_e, achievement) => {
 /* --------------------- AUTO-UPDATER --------------------- */
 function setupAutoUpdater() {
   if (!app.isPackaged) {
-    console.log('[Updater] Skipping auto-updater in dev mode');
+    devLog('[Updater] Skipping auto-updater in dev mode');
     return;
   }
 
@@ -827,14 +828,14 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('[Updater] Error:', err);
+    logError('[Updater] Error:', err);
     sendUpdaterStatus({ status: 'error', error: err?.message || 'Unknown error' });
   });
 
   // Check for updates after a short delay
   setTimeout(() => {
     autoUpdater.checkForUpdates().catch((err) => {
-      console.error('[Updater] Initial check failed:', err);
+      logError('[Updater] Initial check failed:', err);
     });
   }, 10000);
 
@@ -893,7 +894,7 @@ app.whenReady().then(async () => {
       const knownId = scrobbler.findMatch(data.title);
       if (knownId) {
         data.mediaId = knownId;
-        console.log(`[Main] Scrobbler match found: ${data.title} -> ${knownId}`);
+        devLog(`[Main] Scrobbler match found: ${data.title} -> ${knownId}`);
       }
     }
 
@@ -903,7 +904,7 @@ app.whenReady().then(async () => {
   });
 
   miruBridge.onConnectionChange((connected) => {
-    console.log(`[Main] Miru extension ${connected ? 'connected' : 'disconnected'}`);
+    devLog(`[Main] Miru extension ${connected ? 'connected' : 'disconnected'}`);
     if (mainWindow) {
       mainWindow.webContents.send('miru:connection', { connected });
     }

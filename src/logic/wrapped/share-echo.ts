@@ -1,11 +1,22 @@
 // ShokaiShelf Echo - Share as Image
 import html2canvas from 'html2canvas';
 import type { EchoData } from './echo-types';
+import { ShokaiErrorFactory } from '../../errors/ShokaiErrors';
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // Helper to fetch image and convert to Base64 Data URL
 async function imageToDataUrl(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+
+    // Validate HTTP status before reading blob
+    if (!response.ok) {
+      const error = ShokaiErrorFactory.mediaLoadError(url, response.status);
+      devWarn('[ShareEcho]', error.getDisplayMessage());
+      return null;
+    }
+
     const blob = await response.blob();
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -14,7 +25,8 @@ async function imageToDataUrl(url: string): Promise<string | null> {
       reader.readAsDataURL(blob);
     });
   } catch (e) {
-    console.warn('[ShareEcho] Failed to fetch image for DataURL conversion:', url, e);
+    const error = ShokaiErrorFactory.mediaLoadError(url);
+    devWarn('[ShareEcho]', error.getDisplayMessage(), e);
     return null;
   }
 }
@@ -23,7 +35,7 @@ async function imageToDataUrl(url: string): Promise<string | null> {
 export async function exportEchoAsImage(elementId: string = 'echo-share-card'): Promise<Blob | null> {
   const element = document.getElementById(elementId);
   if (!element) {
-    console.error('[ShareEcho] Element not found:', elementId);
+    logError('[ShareEcho] Element not found:', elementId);
     return null;
   }
 
@@ -74,13 +86,13 @@ export async function exportEchoAsImage(elementId: string = 'echo-share-card'): 
           resolve(blob);
         }, 'image/png', 1.0);
       } catch (e) {
-        console.error('[ShareEcho] Canvas toBlob failed:', e);
+        logError('[ShareEcho] Canvas toBlob failed:', e);
         resolve(null);
       }
     });
 
   } catch (e) {
-    console.error('[ShareEcho] Failed to generate image:', e);
+    logError('[ShareEcho] Failed to generate image:', e);
     return null;
   } finally {
     // 4. Restore original images immediately
@@ -114,11 +126,11 @@ export async function shareEcho(data: EchoData): Promise<boolean> {
     if (navigator.canShare(shareData)) {
       try {
         await navigator.share(shareData);
-        console.log('[ShareEcho] Shared successfully');
+        devLog('[ShareEcho] Shared successfully');
         return true;
       } catch (e) {
         if ((e as Error).name !== 'AbortError') {
-          console.error('[ShareEcho] Share failed:', e);
+          logError('[ShareEcho] Share failed:', e);
         }
       }
     }
@@ -139,10 +151,10 @@ function downloadBlob(blob: Blob, fileName: string): boolean {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    console.log('[ShareEcho] Downloaded:', fileName);
+    devLog('[ShareEcho] Downloaded:', fileName);
     return true;
   } catch (e) {
-    console.error('[ShareEcho] Download failed:', e);
+    logError('[ShareEcho] Download failed:', e);
     return false;
   }
 }
@@ -158,10 +170,10 @@ export async function copyEchoToClipboard(): Promise<boolean> {
         'image/png': blob,
       }),
     ]);
-    console.log('[ShareEcho] Copied to clipboard');
+    devLog('[ShareEcho] Copied to clipboard');
     return true;
   } catch (e) {
-    console.error('[ShareEcho] Copy failed:', e);
+    logError('[ShareEcho] Copy failed:', e);
     return false;
   }
 }

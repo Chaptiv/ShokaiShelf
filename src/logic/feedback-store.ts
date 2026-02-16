@@ -9,6 +9,8 @@ export type FeedbackType = "like" | "dislike" | null;
 
 // Import GranularReason type from Dream V4
 import type { GranularReason, UserContext } from "./netrecDream/dream-types";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 export interface FeedbackEntry {
   mediaId: number;
@@ -48,7 +50,7 @@ export async function getAllFeedback(): Promise<Record<number, FeedbackEntry>> {
 
     return {};
   } catch (error) {
-    console.error("[FeedbackStore] Failed to load feedback:", error);
+    logError("[FeedbackStore] Failed to load feedback:", error);
     return {};
   }
 }
@@ -100,9 +102,9 @@ export async function saveFeedback(
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(allFeedback));
 
-    console.log(`[FeedbackStore] Saved ${type} for media ${mediaId}`);
+    devLog(`[FeedbackStore] Saved ${type} for media ${mediaId}`);
   } catch (error) {
-    console.error("[FeedbackStore] Failed to save feedback:", error);
+    logError("[FeedbackStore] Failed to save feedback:", error);
   }
 }
 
@@ -155,9 +157,9 @@ export async function clearAllFeedback(): Promise<void> {
       await window.shokai.store.set(STORAGE_KEY, {});
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify({}));
-    console.log("[FeedbackStore] Cleared all feedback");
+    devLog("[FeedbackStore] Cleared all feedback");
   } catch (error) {
-    console.error("[FeedbackStore] Failed to clear feedback:", error);
+    logError("[FeedbackStore] Failed to clear feedback:", error);
   }
 }
 

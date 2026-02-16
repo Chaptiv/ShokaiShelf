@@ -14,7 +14,7 @@ ShokaiShelf ist ein moderner, lokaler Anime-Client mit AniList-Integration und e
 
 ## 🚀 Installation
 
-1. Lade den neuesten Installer von der [Releases-Seite](https://github.com/maximilianerb/ShokaiShelf/releases) herunter.
+1. Lade den neuesten Installer von der [Releases-Seite](https://github.com/Chaptiv/ShokaiShelf/releases) herunter.
 2. Installiere die Anwendung.
 3. Beim ersten Start wirst du durch den **Setup-Wizard** geführt.
    - Du benötigst einen AniList-Account.
@@ -34,7 +34,7 @@ ShokaiShelf ist ein moderner, lokaler Anime-Client mit AniList-Integration und e
 
 ## Feedback & Bugs
 
-Bitte melde Fehler direkt im [Issue Tracker](https://github.com/maximilianerb/ShokaiShelf/issues).
+Bitte melde Fehler direkt im [Issue Tracker](https://github.com/Chaptiv/ShokaiShelf/issues).
 Füge wenn möglich Screenshots und Logs hinzu.
 
 ---

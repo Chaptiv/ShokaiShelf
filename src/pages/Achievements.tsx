@@ -6,6 +6,8 @@ import { ACHIEVEMENTS } from '../logic/achievements/achievement-definitions';
 import { syncAchievementsWithHistory } from '../logic/achievements/achievement-engine';
 import { viewerCached, userLists } from '../api/anilist';
 import type { AchievementDefinition, UnlockedAchievement } from '../logic/achievements/achievement-types';
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // Group achievements by category
 function getCategories(t: (key: string) => string) {
@@ -57,7 +59,7 @@ export default function Achievements() {
         }
       }
     } catch (e) {
-      console.error("Sync failed", e);
+      logError("Sync failed", e);
     } finally {
       setIsSyncing(false);
     }

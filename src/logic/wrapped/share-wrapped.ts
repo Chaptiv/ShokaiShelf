@@ -1,12 +1,14 @@
 // Share Wrapped as Image
 import html2canvas from 'html2canvas';
 import type { WrappedData } from './wrapped-types';
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // Export wrapped card as PNG image
 export async function exportWrappedAsImage(elementId: string = 'wrapped-share-card'): Promise<Blob | null> {
   const element = document.getElementById(elementId);
   if (!element) {
-    console.error('[ShareWrapped] Element not found:', elementId);
+    logError('[ShareWrapped] Element not found:', elementId);
     return null;
   }
 
@@ -25,7 +27,7 @@ export async function exportWrappedAsImage(elementId: string = 'wrapped-share-ca
       }, 'image/png');
     });
   } catch (e) {
-    console.error('[ShareWrapped] Failed to generate image:', e);
+    logError('[ShareWrapped] Failed to generate image:', e);
     return null;
   }
 }
@@ -50,11 +52,11 @@ export async function shareWrapped(data: WrappedData): Promise<boolean> {
     if (navigator.canShare(shareData)) {
       try {
         await navigator.share(shareData);
-        console.log('[ShareWrapped] Shared successfully');
+        devLog('[ShareWrapped] Shared successfully');
         return true;
       } catch (e) {
         if ((e as Error).name !== 'AbortError') {
-          console.error('[ShareWrapped] Share failed:', e);
+          logError('[ShareWrapped] Share failed:', e);
         }
       }
     }
@@ -75,10 +77,10 @@ function downloadBlob(blob: Blob, fileName: string): boolean {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    console.log('[ShareWrapped] Downloaded:', fileName);
+    devLog('[ShareWrapped] Downloaded:', fileName);
     return true;
   } catch (e) {
-    console.error('[ShareWrapped] Download failed:', e);
+    logError('[ShareWrapped] Download failed:', e);
     return false;
   }
 }
@@ -94,10 +96,10 @@ export async function copyWrappedToClipboard(): Promise<boolean> {
         'image/png': blob,
       }),
     ]);
-    console.log('[ShareWrapped] Copied to clipboard');
+    devLog('[ShareWrapped] Copied to clipboard');
     return true;
   } catch (e) {
-    console.error('[ShareWrapped] Copy failed:', e);
+    logError('[ShareWrapped] Copy failed:', e);
     return false;
   }
 }

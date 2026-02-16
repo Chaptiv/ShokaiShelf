@@ -51,7 +51,7 @@ import {
   calculateConfidence,
   exportExplanation,
 } from "./explain";
-
+import { devLog, devWarn, logError } from "@utils/logger";
 import {
   loadUserFeedbacks,
   loadUserInteractions,
@@ -75,15 +75,15 @@ export class AnimeNetRecV3 {
     userName: string,
     topK: number = 12
   ): Promise<RecommendationResult[]> {
-    console.log(`[NetRecV3] Starting recommendation for ${userName}`);
+    devLog(`[NetRecV3] Starting recommendation for ${userName}`);
 
     // 1. Load user profile
     const profile = await this.loadUserProfile(userName);
-    console.log(`[NetRecV3] Loaded ${profile.entries.length} entries`);
+    devLog(`[NetRecV3] Loaded ${profile.entries.length} entries`);
 
     // 2. Generate candidates
     const candidates = await this.generateCandidates(profile);
-    console.log(`[NetRecV3] Generated ${candidates.length} candidates`);
+    devLog(`[NetRecV3] Generated ${candidates.length} candidates`);
 
     // 3. Filter candidates
     const filtered = applyFilters(
@@ -91,30 +91,35 @@ export class AnimeNetRecV3 {
       profile.entries,
       profile.preferences
     );
-    console.log(`[NetRecV3] After filtering: ${filtered.length}`);
+    devLog(`[NetRecV3] After filtering: ${filtered.length}`);
 
     // 4. Score candidates
     const scored = this.scoreCandidates(filtered, profile);
-    console.log(`[NetRecV3] Scored ${scored.length} candidates`);
+    devLog(`[NetRecV3] Scored ${scored.length} candidates`);
 
-    // 5. Sort by meta score
-    scored.sort((a, b) => b.scores.meta - a.scores.meta);
+    // 5. Filter by minimum score threshold
+    const MIN_SCORE = this.config.minScoreThreshold || 0.20;
+    const qualityFiltered = scored.filter(c => c.scores.meta >= MIN_SCORE);
+    devLog(`[NetRecV3] After quality filter (>=${MIN_SCORE}): ${qualityFiltered.length} (removed ${scored.length - qualityFiltered.length} low-quality)`);
 
-    // 6. MMR Re-ranking
+    // 6. Sort by meta score
+    qualityFiltered.sort((a, b) => b.scores.meta - a.scores.meta);
+
+    // 7. MMR Re-ranking
     const mode = profile.preferences?.mode || "balanced";
     const lambda = adaptiveLambda(
       extractUserPreferences(profile.entries).genres,
       mode
     );
-    const reranked = mmrReRank(scored, lambda, topK);
-    console.log(`[NetRecV3] Re-ranked to ${reranked.length} results`);
+    const reranked = mmrReRank(qualityFiltered, lambda, topK);
+    devLog(`[NetRecV3] Re-ranked to ${reranked.length} results`);
 
-    // 7. Generate explanations
+    // 8. Generate explanations
     const results = this.createResults(reranked, profile);
 
-    // 8. Log diversity
+    // 9. Log diversity
     const diversityScore = calculateDiversityScore(reranked);
-    console.log(`[NetRecV3] Diversity score: ${diversityScore.toFixed(3)}`);
+    devLog(`[NetRecV3] Diversity score: ${diversityScore.toFixed(3)}`);
 
     return results;
   }
@@ -130,10 +135,10 @@ export class AnimeNetRecV3 {
     const feedbacks = await loadUserFeedbacks(userName);
     const interactions = await loadUserInteractions(userName);
 
-    console.log(
+    devLog(
       `[NetRecV3] Loaded ${feedbacks.likes.size} likes, ${feedbacks.dislikes.size} dislikes`
     );
-    console.log(
+    devLog(
       `[NetRecV3] Loaded ${interactions.clicks.size} clicks, ${interactions.views.size} views`
     );
 
@@ -142,11 +147,11 @@ export class AnimeNetRecV3 {
     try {
       const { getPreferences } = await import("../preferences-store");
       userPrefs = await getPreferences();
-      console.log(
+      devLog(
         `[NetRecV3] Loaded user preferences: ${userPrefs.favoriteGenres.length} favorites, ${userPrefs.dislikedGenres.length} dislikes`
       );
     } catch (error) {
-      console.warn("[NetRecV3] Failed to load user preferences:", error);
+      devWarn("[NetRecV3] Failed to load user preferences:", error);
     }
 
     return {
@@ -179,27 +184,27 @@ export class AnimeNetRecV3 {
     // 1. Similar to Currently Watching (NEW!)
     const currentCandidates = await this.generateCurrentSimilarCandidates(profile);
     candidates.push(...currentCandidates);
-    console.log(`[Candidates] Current-Similar: ${currentCandidates.length}`);
+    devLog(`[Candidates] Current-Similar: ${currentCandidates.length}`);
 
     // 2. CF Candidates
     const cfCandidates = await this.generateCFCandidates(profile);
     candidates.push(...cfCandidates);
-    console.log(`[Candidates] CF: ${cfCandidates.length}`);
+    devLog(`[Candidates] CF: ${cfCandidates.length}`);
 
     // 3. Content Candidates
     const contentCandidates = await this.generateContentCandidates(profile);
     candidates.push(...contentCandidates);
-    console.log(`[Candidates] Content: ${contentCandidates.length}`);
+    devLog(`[Candidates] Content: ${contentCandidates.length}`);
 
     // 4. Relations Candidates (NEW!)
     const relationsCandidates = await this.generateRelationsCandidates(profile);
     candidates.push(...relationsCandidates);
-    console.log(`[Candidates] Relations: ${relationsCandidates.length}`);
+    devLog(`[Candidates] Relations: ${relationsCandidates.length}`);
 
     // 5. Trending Fallback
     const trendingCandidates = await this.generateTrendingCandidates(profile);
     candidates.push(...trendingCandidates);
-    console.log(`[Candidates] Trending: ${trendingCandidates.length}`);
+    devLog(`[Candidates] Trending: ${trendingCandidates.length}`);
 
     return candidates;
   }
@@ -218,7 +223,7 @@ export class AnimeNetRecV3 {
 
     if (currentAnime.length === 0) return [];
 
-    console.log(`[Current-Similar] Using ${currentAnime.length} currently watching anime as seeds`);
+    devLog(`[Current-Similar] Using ${currentAnime.length} currently watching anime as seeds`);
 
     // Build TF-IDF vectors for seeds
     const seedVectors = currentAnime.map((media) => buildTFIDFVector(media));
@@ -297,7 +302,7 @@ export class AnimeNetRecV3 {
       }
     }
 
-    console.log(`[Relations] Found ${candidates.length} relation candidates`);
+    devLog(`[Relations] Found ${candidates.length} relation candidates`);
     return candidates;
   }
 
@@ -326,7 +331,7 @@ export class AnimeNetRecV3 {
 
     if (seeds.length === 0) return [];
 
-    console.log(`[CF] Using ${seeds.length} seeds`);
+    devLog(`[CF] Using ${seeds.length} seeds`);
 
     // Fetch recommendations
     const recsMap = await fetchRecommendations(seeds);

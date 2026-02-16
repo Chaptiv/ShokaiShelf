@@ -6,6 +6,8 @@
  */
 
 import type { UserFeedbacks, UserInteractions } from "./types";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // ============================================================================
 // FEEDBACK LOADER (Compatible with V2)
@@ -45,7 +47,7 @@ export async function loadUserFeedbacks(userId: string): Promise<UserFeedbacks> 
           }
         }
       } catch (e) {
-        console.warn("[Feedback] Failed to load from unified store:", e);
+        devWarn("[Feedback] Failed to load from unified store:", e);
       }
     }
 
@@ -68,7 +70,7 @@ export async function loadUserFeedbacks(userId: string): Promise<UserFeedbacks> 
           }
         }
       } catch (e) {
-        console.warn("[Feedback] Failed to load from unified localStorage:", e);
+        devWarn("[Feedback] Failed to load from unified localStorage:", e);
       }
     }
 
@@ -93,11 +95,11 @@ export async function loadUserFeedbacks(userId: string): Promise<UserFeedbacks> 
       }
     }
 
-    console.log(
+    devLog(
       `[Feedback] Loaded ${likes.size} likes and ${dislikes.size} dislikes for user ${userId}`
     );
   } catch (e) {
-    console.error("[Feedback] Failed to load feedbacks:", e);
+    logError("[Feedback] Failed to load feedbacks:", e);
   }
 
   return { likes, dislikes };
@@ -145,11 +147,11 @@ export async function loadUserInteractions(
       }
     }
 
-    console.log(
+    devLog(
       `[Interactions] Loaded ${clicks.size} clicks, ${views.size} views, ${impressions.size} impressions`
     );
   } catch (e) {
-    console.error("[Interactions] Failed to load interactions:", e);
+    logError("[Interactions] Failed to load interactions:", e);
   }
 
   return { clicks, views, impressions };
@@ -172,10 +174,10 @@ export async function saveClick(userId: string, animeId: number): Promise<void> 
     if (!clicks.includes(animeId)) {
       clicks.push(animeId);
       await store.set(key, clicks);
-      console.log(`[Interactions] Saved click for anime ${animeId}`);
+      devLog(`[Interactions] Saved click for anime ${animeId}`);
     }
   } catch (e) {
-    console.error("[Interactions] Failed to save click:", e);
+    logError("[Interactions] Failed to save click:", e);
   }
 }
 
@@ -192,10 +194,10 @@ export async function saveView(userId: string, animeId: number): Promise<void> {
     if (!views.includes(animeId)) {
       views.push(animeId);
       await store.set(key, views);
-      console.log(`[Interactions] Saved view for anime ${animeId}`);
+      devLog(`[Interactions] Saved view for anime ${animeId}`);
     }
   } catch (e) {
-    console.error("[Interactions] Failed to save view:", e);
+    logError("[Interactions] Failed to save view:", e);
   }
 }
 
@@ -215,7 +217,7 @@ export async function saveImpression(
     impressions[animeId] = (impressions[animeId] || 0) + 1;
     await store.set(key, impressions);
   } catch (e) {
-    console.error("[Interactions] Failed to save impression:", e);
+    logError("[Interactions] Failed to save impression:", e);
   }
 }
 
@@ -233,7 +235,7 @@ export async function saveSkip(userId: string, animeId: number): Promise<void> {
     skips[animeId] = (skips[animeId] || 0) + 1;
     await store.set(key, skips);
   } catch (e) {
-    console.error("[Interactions] Failed to save skip:", e);
+    logError("[Interactions] Failed to save skip:", e);
   }
 }
 
@@ -258,7 +260,7 @@ export async function batchSaveImpressions(
 
     await store.set(key, impressions);
   } catch (e) {
-    console.error("[Interactions] Failed to batch save impressions:", e);
+    logError("[Interactions] Failed to batch save impressions:", e);
   }
 }
 

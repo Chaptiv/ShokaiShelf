@@ -22,7 +22,7 @@ export async function sendAchievementSystemNotification(achievement: {
     }
     return false;
   } catch (e) {
-    console.error('[Achievements] Failed to send system notification:', e);
+    logError('[Achievements] Failed to send system notification:', e);
     return false;
   }
 }

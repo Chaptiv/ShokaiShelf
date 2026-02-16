@@ -1,6 +1,7 @@
 // electron/notificationEngine.ts
 // Notification Engine for new anime episodes
 import { Notification } from 'electron';
+import { devLog, devWarn, logError } from './utils/logger.js';
 // ============================================================================
 // NOTIFICATION ENGINE
 // ============================================================================
@@ -34,11 +35,11 @@ export class NotificationEngine {
         if (this.isRunning)
             return;
         if (!this.accessToken || !this.userId) {
-            console.log('[Notifications] Cannot start - not authenticated');
+            devLog('[Notifications] Cannot start - not authenticated');
             return;
         }
         this.isRunning = true;
-        console.log('[Notifications] Started');
+        devLog('[Notifications] Started');
         this.scheduleNextCheck();
     }
     stop() {
@@ -47,7 +48,7 @@ export class NotificationEngine {
             this.checkTimer = null;
         }
         this.isRunning = false;
-        console.log('[Notifications] Stopped');
+        devLog('[Notifications] Stopped');
     }
     getConfig() {
         return {
@@ -125,7 +126,7 @@ export class NotificationEngine {
         if (!this.accessToken || !this.userId)
             return;
         try {
-            console.log('[Notifications] Performing check...');
+            devLog('[Notifications] Performing check...');
             const now = Math.floor(Date.now() / 1000);
             const lookbackSeconds = this.config.lookbackWindow * 3600;
             const airingAtGreater = now - lookbackSeconds;
@@ -133,19 +134,19 @@ export class NotificationEngine {
             const watchingList = await this.fetchWatchingList();
             const mediaIds = watchingList.map(entry => entry.media.id);
             if (mediaIds.length === 0) {
-                console.log('[Notifications] No anime in watching list');
+                devLog('[Notifications] No anime in watching list');
                 return;
             }
             // Fetch airing schedule for these anime
             const airingSchedules = await this.fetchAiringSchedules(mediaIds, airingAtGreater, now);
-            console.log('[Notifications] Found ' + airingSchedules.length + ' airing episodes');
+            devLog('[Notifications] Found ' + airingSchedules.length + ' airing episodes');
             // Filter out already notified
             const newEpisodes = airingSchedules.filter(schedule => {
                 return !this.history.some(item => item.mediaId === schedule.mediaId &&
                     item.episode === schedule.episode &&
                     item.userId === this.userId);
             });
-            console.log('[Notifications] ' + newEpisodes.length + ' new episodes to notify');
+            devLog('[Notifications] ' + newEpisodes.length + ' new episodes to notify');
             // Send notifications
             for (const schedule of newEpisodes) {
                 this.sendNotification(schedule);
@@ -153,7 +154,7 @@ export class NotificationEngine {
             }
         }
         catch (e) {
-            console.error('[Notifications] Check failed:', e);
+            logError('[Notifications] Check failed:', e);
         }
     }
     async fetchWatchingList() {
@@ -238,7 +239,7 @@ export class NotificationEngine {
             body: 'Neue Episode ist verfügbar!',
         });
         notification.show();
-        console.log('[Notifications] Sent: ' + title + ' - Episode ' + schedule.episode);
+        devLog('[Notifications] Sent: ' + title + ' - Episode ' + schedule.episode);
     }
     addToHistory(schedule) {
         const title = schedule.media.title.english || schedule.media.title.romaji || 'Unknown';

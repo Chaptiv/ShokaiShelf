@@ -52,7 +52,7 @@ export async function getPreferences(): Promise<UserPreferences> {
 
     return DEFAULT_PREFERENCES;
   } catch (error) {
-    console.error("[Preferences] Failed to load preferences:", error);
+    logError("[Preferences] Failed to load preferences:", error);
     return DEFAULT_PREFERENCES;
   }
 }
@@ -75,9 +75,9 @@ export async function savePreferences(preferences: Partial<UserPreferences>): Pr
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
-    console.log("[Preferences] Saved preferences");
+    devLog("[Preferences] Saved preferences");
   } catch (error) {
-    console.error("[Preferences] Failed to save preferences:", error);
+    logError("[Preferences] Failed to save preferences:", error);
   }
 }
 
@@ -209,9 +209,9 @@ export async function resetPreferences(): Promise<void> {
       await window.shokai.store.set(STORAGE_KEY, DEFAULT_PREFERENCES);
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_PREFERENCES));
-    console.log("[Preferences] Reset preferences");
+    devLog("[Preferences] Reset preferences");
   } catch (error) {
-    console.error("[Preferences] Failed to reset preferences:", error);
+    logError("[Preferences] Failed to reset preferences:", error);
   }
 }
 

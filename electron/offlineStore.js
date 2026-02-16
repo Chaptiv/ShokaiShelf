@@ -4,6 +4,7 @@
 import Database from 'better-sqlite3';
 import path from 'node:path';
 import { app } from 'electron';
+import { devLog, devWarn, logError } from './utils/logger.js';
 
 // ============================================================================
 // OFFLINE STORE
@@ -53,7 +54,7 @@ export class OfflineStore {
       CREATE INDEX IF NOT EXISTS idx_sync_queue_pending ON sync_queue(synced_at) WHERE synced_at IS NULL;
     `);
 
-    console.log('[OfflineStore] Initialized');
+    devLog('[OfflineStore] Initialized');
   }
 
   // ============================================================================
@@ -87,7 +88,7 @@ export class OfflineStore {
     });
 
     insertMany(entries);
-    console.log(`[OfflineStore] Cached ${entries.length} entries for user ${userId}`);
+    devLog(`[OfflineStore] Cached ${entries.length} entries for user ${userId}`);
   }
 
   getCachedLibrary(userId) {
@@ -182,7 +183,7 @@ export class OfflineStore {
   clearCache(userId) {
     const stmt = this.db.prepare('DELETE FROM library_cache WHERE user_id = ?');
     stmt.run(userId);
-    console.log(`[OfflineStore] Cleared cache for user ${userId}`);
+    devLog(`[OfflineStore] Cleared cache for user ${userId}`);
   }
 
   // ============================================================================
@@ -196,7 +197,7 @@ export class OfflineStore {
     `);
 
     const result = stmt.run(userId, action, JSON.stringify(payload), Date.now());
-    console.log(`[OfflineStore] Queued action: ${action} for user ${userId}`);
+    devLog(`[OfflineStore] Queued action: ${action} for user ${userId}`);
     return result.lastInsertRowid;
   }
 
@@ -259,7 +260,7 @@ export class OfflineStore {
     const stmt = this.db.prepare('DELETE FROM library_cache WHERE cached_at < ?');
     const result = stmt.run(oldestAllowed);
     if (result.changes > 0) {
-      console.log(`[OfflineStore] Cleaned up ${result.changes} old cache entries`);
+      devLog(`[OfflineStore] Cleaned up ${result.changes} old cache entries`);
     }
 
     // Remove old synced queue items (older than 7 days)
@@ -269,7 +270,7 @@ export class OfflineStore {
 
   close() {
     this.db.close();
-    console.log('[OfflineStore] Closed');
+    devLog('[OfflineStore] Closed');
   }
 }
 

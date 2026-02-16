@@ -5,6 +5,8 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { MdDelete, MdRefresh, MdVideocam, MdBugReport, MdAdd, MdBlock } from "react-icons/md";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // ============================================================================
 // DREAM DESIGN TOKENS
@@ -280,7 +282,7 @@ export default function Settings_Scrobbler() {
         setIsRunning(result.status.isRunning);
       }
     } catch (e) {
-      console.error('[Scrobbler Settings] Load error:', e);
+      logError('[Scrobbler Settings] Load error:', e);
     } finally {
       setLoading(false);
     }

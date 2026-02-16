@@ -26,6 +26,8 @@ import ComposerWidget from "@components/ComposerWidget";
 import MediaDetailView_dream from "@components/MediaDetailView_dream";
 import { MdRefresh, MdFilterList, MdPeople, MdPublic, MdTrendingUp } from "react-icons/md";
 import { AiOutlineClose } from "react-icons/ai";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 type FeedType = "following" | "global";
 
@@ -174,7 +176,7 @@ export default function Social_dream() {
 
       setActivities(data);
     } catch (err) {
-      console.error("[Social] Failed to load feed", err);
+      logError("[Social] Failed to load feed", err);
       setError(
         err instanceof Error ? err.message : t("social.loadError")
       );
@@ -209,7 +211,7 @@ export default function Social_dream() {
       const details = await mediaDetails(id);
       setSelectedMedia(details);
     } catch (e) {
-      console.error("Failed to load details:", e);
+      logError("Failed to load details:", e);
     }
   }, []);
 

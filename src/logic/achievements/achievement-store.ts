@@ -28,7 +28,7 @@ export function getAchievementStore(): AchievementStore {
       streaks: { ...DEFAULT_STORE.streaks, ...parsed.streaks },
     };
   } catch (e) {
-    console.error('[AchievementStore] Failed to load:', e);
+    logError('[AchievementStore] Failed to load:', e);
     return { ...DEFAULT_STORE };
   }
 }
@@ -38,7 +38,7 @@ export function saveAchievementStore(store: AchievementStore): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch (e) {
-    console.error('[AchievementStore] Failed to save:', e);
+    logError('[AchievementStore] Failed to save:', e);
   }
 }
 
@@ -66,7 +66,7 @@ export function unlockAchievement(achievementId: string): UnlockedAchievement | 
   store.lastChecked = Date.now();
   saveAchievementStore(store);
 
-  console.log('[AchievementStore] Unlocked:', achievementId);
+  devLog('[AchievementStore] Unlocked:', achievementId);
   return unlocked;
 }
 
@@ -77,6 +77,8 @@ export function getUnlockedAchievements(): UnlockedAchievement[] {
 
 // Get all defined achievements (wrapper)
 import { ACHIEVEMENTS } from './achievement-definitions';
+import { devLog, devWarn, logError } from "@utils/logger";
+
 export function getAllAchievements() {
   return ACHIEVEMENTS;
 }
@@ -116,7 +118,7 @@ export function updateWatchStreak(): number {
   store.streaks.lastWatchDate = today;
   saveAchievementStore(store);
 
-  console.log('[AchievementStore] Watch streak:', store.streaks.watchStreak);
+  devLog('[AchievementStore] Watch streak:', store.streaks.watchStreak);
   return store.streaks.watchStreak;
 }
 
@@ -143,7 +145,7 @@ export function updateAppOpenStreak(): number {
   store.streaks.lastAppOpenDate = today;
   saveAchievementStore(store);
 
-  console.log('[AchievementStore] App open streak:', store.streaks.appOpenStreak);
+  devLog('[AchievementStore] App open streak:', store.streaks.appOpenStreak);
   return store.streaks.appOpenStreak;
 }
 
@@ -156,5 +158,5 @@ export function getStreaks() {
 // Clear all achievements (for testing)
 export function clearAchievements(): void {
   localStorage.removeItem(STORAGE_KEY);
-  console.log('[AchievementStore] Cleared all achievements');
+  devLog('[AchievementStore] Cleared all achievements');
 }

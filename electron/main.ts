@@ -7,6 +7,7 @@ import { NotificationStore } from './notificationStore.js'
 import { NotificationEngine } from './notificationEngine.js'
 import { MiruBridge } from './miruBridge.js'
 import { OfflineStore } from './offlineStore.js'
+import { ShokaiErrorFactory } from './ShokaiErrors.js'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -370,9 +371,21 @@ ipcMain.handle('offline:processQueueItem', async (_event, id: number, action: st
         }),
       })
 
+      // Validate HTTP status before parsing JSON
+      if (!response.ok) {
+        throw ShokaiErrorFactory.httpError(
+          response.status,
+          response.statusText,
+          'https://graphql.anilist.co/SaveMediaListEntry'
+        )
+      }
+
       const result = await response.json()
       if (result.errors) {
-        throw new Error(result.errors[0]?.message || 'GraphQL error')
+        throw ShokaiErrorFactory.graphqlError(
+          result.errors[0]?.message || 'Unknown GraphQL error',
+          'SaveMediaListEntry'
+        )
       }
     } else if (action === 'delete') {
       const mutation = `
@@ -394,9 +407,21 @@ ipcMain.handle('offline:processQueueItem', async (_event, id: number, action: st
         }),
       })
 
+      // Validate HTTP status before parsing JSON
+      if (!response.ok) {
+        throw ShokaiErrorFactory.httpError(
+          response.status,
+          response.statusText,
+          'https://graphql.anilist.co/DeleteMediaListEntry'
+        )
+      }
+
       const result = await response.json()
       if (result.errors) {
-        throw new Error(result.errors[0]?.message || 'GraphQL error')
+        throw ShokaiErrorFactory.graphqlError(
+          result.errors[0]?.message || 'Unknown GraphQL error',
+          'DeleteMediaListEntry'
+        )
       }
     }
 
@@ -404,8 +429,17 @@ ipcMain.handle('offline:processQueueItem', async (_event, id: number, action: st
     offlineStore.markSynced(id)
     return { success: true }
   } catch (err: any) {
-    console.error('[Main] Process queue item failed:', err)
-    offlineStore.markFailed(id, err.message)
+    const errorMessage = err.code
+      ? `${err.getDisplayMessage?.()} - ${err.message}`
+      : err.message || 'Unknown error'
+    console.error('[Main] Process queue item failed:', err.code || 'NO_CODE', errorMessage)
+
+    // Log full error details if it's a ShokaiError
+    if (err.toJSON) {
+      console.error('[Main] Error details:', JSON.stringify(err.toJSON(), null, 2))
+    }
+
+    offlineStore.markFailed(id, errorMessage)
     throw err
   }
 })

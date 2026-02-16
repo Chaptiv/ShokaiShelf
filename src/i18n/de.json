@@ -41,7 +41,8 @@
     "update": "Aktualisieren",
     "episode": "Episode",
     "ongoing": "Laufend",
-    "episodes_count": "{{count}} Episoden"
+    "episodes_count": "{{count}} Episoden",
+    "retry": "Erneut versuchen"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -462,7 +463,8 @@
     "recommendedForYou": "Für dich empfohlen",
     "animeBasedOnTaste": "{{count}} Anime basierend auf deinem Geschmack",
     "yourProfile": "Dein Profil",
-    "loadingDream": "Lade Dream Engine..."
+    "loadingDream": "Lade Dream Engine...",
+    "loadError": "Dashboard konnte nicht geladen werden"
   },
   "library": {
     "noEntries": "Keine Einträge gefunden",

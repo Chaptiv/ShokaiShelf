@@ -5,6 +5,8 @@
  */
 
 import type { CacheEntry, RateLimitState } from "./types";
+import { devLog, devWarn, logError } from "@utils/logger";
+
 
 // ============================================================================
 // CACHE MANAGER
@@ -145,7 +147,7 @@ export class RateLimiter {
     // Check backoff
     if (this.state.backoffUntil && now < this.state.backoffUntil) {
       const waitMs = this.state.backoffUntil - now;
-      console.warn(`[RateLimiter] In backoff, wait ${waitMs}ms`);
+      devWarn(`[RateLimiter] In backoff, wait ${waitMs}ms`);
       await this.sleep(waitMs);
       return this.checkLimit();
     }
@@ -158,7 +160,7 @@ export class RateLimiter {
     
     // Check limit
     if (this.state.requestCount >= this.maxRequests) {
-      console.warn("[RateLimiter] Rate limit reached, waiting...");
+      devWarn("[RateLimiter] Rate limit reached, waiting...");
       const waitMs = this.state.resetTime - now;
       await this.sleep(waitMs);
       return this.checkLimit();
@@ -177,7 +179,7 @@ export class RateLimiter {
       : this.windowMs * this.backoffMultiplier;
     
     this.state.backoffUntil = Date.now() + backoffMs;
-    console.error(`[RateLimiter] 429 detected, backing off for ${backoffMs}ms`);
+    logError(`[RateLimiter] 429 detected, backing off for ${backoffMs}ms`);
   }
 
   /**
@@ -211,7 +213,7 @@ export class RequestQueue {
   ): Promise<T> {
     // Check if already pending
     if (this.pending.has(key)) {
-      console.log(`[RequestQueue] Deduplicating request: ${key}`);
+      devLog(`[RequestQueue] Deduplicating request: ${key}`);
       return this.pending.get(key) as Promise<T>;
     }
 
@@ -269,12 +271,12 @@ export async function cachedFetch<T>(
   if (!options?.bypassCache) {
     const cached = cacheManager.get<T>(namespace, id);
     if (cached) {
-      console.log(`[Cache] HIT: ${cacheKey}`);
+      devLog(`[Cache] HIT: ${cacheKey}`);
       return cached;
     }
   }
 
-  console.log(`[Cache] MISS: ${cacheKey}`);
+  devLog(`[Cache] MISS: ${cacheKey}`);
 
   // Rate limit
   await rateLimiter.checkLimit();
@@ -292,7 +294,7 @@ export async function cachedFetch<T>(
         rateLimiter.handle429(retryAfter ? parseInt(retryAfter) : undefined);
         
         // Retry after backoff
-        console.log("[Cache] Retrying after 429...");
+        devLog("[Cache] Retrying after 429...");
         await rateLimiter.checkLimit();
         return fetcher();
       }

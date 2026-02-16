@@ -11,6 +11,7 @@ import MediaDetailView_dream from "../components/MediaDetailView_dream";
 import FeedbackModalV4, { ProfileInsightsPanel } from "../components/FeedbackModalV4";
 import { type FeedbackReason } from "../components/FeedbackPopover";
 import { TvIcon, TargetIcon, BoltIcon, BrainIcon, ClockIcon, BookIcon } from "../components/icons/StatusIcons";
+import { devLog, devWarn, logError } from "@utils/logger";
 
 // Particle animation for likes
 function createParticleAnimation(emoji: string, x: number, y: number) {
@@ -79,7 +80,7 @@ function getDailyRecommendation(recs: any[], username: string) {
       return recs[0];
     }
   } catch (e) {
-    console.warn("Daily rec error:", e);
+    devWarn("Daily rec error:", e);
   }
   return recs[0];
 }
@@ -111,7 +112,7 @@ function saveSnooze(mediaId: number) {
     data[mediaId] = Date.now() + SNOOZE_DURATION;
     localStorage.setItem(SNOOZE_KEY, JSON.stringify(data));
   } catch (e) {
-    console.error("Failed to save snooze:", e);
+    logError("Failed to save snooze:", e);
   }
 }
 
@@ -294,38 +295,93 @@ function LoadingScreen() {
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "#0f172a",
+        height: "100vh",
+        background: "linear-gradient(135deg, #0a0e27 0%, #000000 100%)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: "24px",
+        color: "#fff",
+        fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
+      {/* App Icon - Pulsing */}
       <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
         style={{
-          width: "48px",
-          height: "48px",
-          border: "3px solid rgba(0, 212, 255, 0.2)",
-          borderTopColor: "#00d4ff",
-          borderRadius: "50%",
+          marginBottom: 32,
+          animation: "pulse 2s ease-in-out infinite",
         }}
-      />
+      >
+        <img
+          src="/build/icons/icon.png"
+          alt="ShokaiShelf"
+          style={{
+            width: 120,
+            height: 120,
+            objectFit: "contain",
+            filter: "drop-shadow(0 0 30px rgba(0, 212, 255, 0.3))",
+          }}
+        />
+      </motion.div>
+
+      {/* Status */}
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        style={{ color: "white", fontSize: "16px", opacity: 0.7 }}
+        transition={{ delay: 0.2 }}
+        style={{
+          opacity: 0.8,
+          fontSize: 16,
+          fontWeight: 600,
+          letterSpacing: 0.5,
+        }}
+      >
+        Starting ShokaiShelf...
+      </motion.p>
+
+      {/* Sub-status */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        style={{
+          opacity: 0.5,
+          fontSize: 13,
+          fontWeight: 500,
+          marginTop: 8,
+        }}
       >
         {t('dashboard.loadingDream')}
       </motion.p>
+
+      <style>
+        {`
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 1;
+              transform: scale(1);
+            }
+            50% {
+              opacity: 0.7;
+              transform: scale(0.95);
+            }
+          }
+        `}
+      </style>
     </div>
   );
 }
 
-export default function DashboardDream({ onNavigate }: { onNavigate?: (page: string) => void }) {
+export default function DashboardDream({
+  onNavigate,
+  onLoadingChange
+}: {
+  onNavigate?: (page: string) => void;
+  onLoadingChange?: (loading: boolean) => void;
+}) {
   const { t } = useTranslation();
   const [data, setData] = useState<{
     recs: DreamRecommendationResult[];
@@ -335,6 +391,7 @@ export default function DashboardDream({ onNavigate }: { onNavigate?: (page: str
     viewer: any;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [snoozedIds, setSnoozedIds] = useState<Set<number>>(new Set());
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
   const [dislikedIds, setDislikedIds] = useState<Set<number>>(new Set());
@@ -359,7 +416,33 @@ export default function DashboardDream({ onNavigate }: { onNavigate?: (page: str
       const viewer = await viewerCached();
       if (!viewer) return;
 
+      // Check session cache to prevent re-fetching on navigation
+      const cacheKey = `dashboard_cache_${viewer.id}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      const cacheTime = sessionStorage.getItem(`${cacheKey}_time`);
+
+      if (cached && cacheTime) {
+        const age = Date.now() - parseInt(cacheTime);
+        // Use cache if less than 5 minutes old
+        if (age < 5 * 60 * 1000) {
+          devLog('[Dashboard] Using cached data');
+          try {
+            const cachedData = JSON.parse(cached);
+            setData(cachedData);
+            setIsLoading(false);
+            onLoadingChange?.(false);
+            return;
+          } catch (e) {
+            devWarn('[Dashboard] Cache parse failed:', e);
+            sessionStorage.removeItem(cacheKey);
+            sessionStorage.removeItem(`${cacheKey}_time`);
+          }
+        }
+      }
+
       setIsLoading(true);
+      setLoadError(null);
+      onLoadingChange?.(true);
       try {
         // Use Dream Engine instead of V3
         const engine = getDreamEngine() || createDreamEngine();
@@ -412,11 +495,25 @@ export default function DashboardDream({ onNavigate }: { onNavigate?: (page: str
           ? filteredRecs.filter((r: any) => r.media.id !== featuredId)
           : filteredRecs;
 
-        setData({ recs: gridRecs, current, paused, context, viewer });
-      } catch (e) {
-        console.error("Dashboard load error:", e);
+        const dashboardData = { recs: gridRecs, current, paused, context, viewer };
+        setData(dashboardData);
+
+        // Cache the data for 5 minutes
+        try {
+          const cachePayload = JSON.stringify(dashboardData);
+          sessionStorage.setItem(cacheKey, cachePayload);
+          sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
+          devLog(`[Dashboard] Data cached (${Math.round(cachePayload.length / 1024)}KB)`);
+        } catch (cacheErr) {
+          devWarn('[Dashboard] Cache write failed:', cacheErr);
+        }
+      } catch (e: any) {
+        logError("Dashboard load error:", e);
+        const errorMsg = e?.message || 'Unknown error';
+        setLoadError(errorMsg);
       } finally {
         setIsLoading(false);
+        onLoadingChange?.(false);
       }
     }
     init();
@@ -509,7 +606,7 @@ export default function DashboardDream({ onNavigate }: { onNavigate?: (page: str
         return next;
       });
     } catch (e) {
-      console.error("remove from list failed", e);
+      logError("remove from list failed", e);
     }
   }, []);
 
@@ -522,7 +619,7 @@ export default function DashboardDream({ onNavigate }: { onNavigate?: (page: str
         [id]: { ...(prev[id] || {}), status, entryId: entryId ?? prev[id]?.entryId ?? null },
       }));
     } catch (e) {
-      console.error("quick add failed", e);
+      logError("quick add failed", e);
     }
   }, []);
 
@@ -552,11 +649,79 @@ export default function DashboardDream({ onNavigate }: { onNavigate?: (page: str
       const details = await mediaDetails(id);
       setSelectedMedia(details);
     } catch (e) {
-      console.error("Failed to load media details:", e);
+      logError("Failed to load media details:", e);
     }
   }, []);
 
   if (isLoading || !data) {
+    if (loadError) {
+      // Error Screen
+      return (
+        <div
+          style={{
+            minHeight: "100vh",
+            background: "#0f172a",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "Inter, system-ui, sans-serif",
+          }}
+        >
+          <div style={{ textAlign: "center", maxWidth: 500, padding: 32 }}>
+            <div
+              style={{
+                width: 80,
+                height: 80,
+                margin: "0 auto 24px",
+                borderRadius: "50%",
+                background: "rgba(255, 107, 107, 0.15)",
+                border: "2px solid rgba(255, 107, 107, 0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <svg
+                width="36"
+                height="36"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ff6b6b"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
+              {t('dashboard.loadError')}
+            </h2>
+            <p style={{ opacity: 0.7, marginBottom: 24, fontSize: 14 }}>
+              {loadError}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                background: "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
+                border: "none",
+                borderRadius: 12,
+                padding: "12px 24px",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontSize: 14,
+                color: "#000",
+              }}
+            >
+              {t('common.retry')}
+            </button>
+          </div>
+        </div>
+      );
+    }
     return <LoadingScreen />;
   }
 
@@ -680,7 +845,7 @@ export default function DashboardDream({ onNavigate }: { onNavigate?: (page: str
                   }
                 }
               } catch (err) {
-                console.warn("[DashboardDream] Dream engine feedback processing failed:", err);
+                devWarn("[DashboardDream] Dream engine feedback processing failed:", err);
               }
 
               setFeedbackModal(null);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import { SettingsProvider } from "@state/SettingsContext";
@@ -13,12 +13,16 @@ import Echo from "@pages/Echo";
 import Achievements from "@pages/Achievements";
 import ScrobblerToast from "@components/ScrobblerToast";
 import UpdateBanner from "@components/UpdateBanner";
+import RateLimitToast from "@components/RateLimitToast";
+import ColdStartWizard from "@components/ColdStartWizard";
 import type { ScrobblerCandidate } from "../electron/scrobbler";
 import * as anilistAPI from "@api/anilist";
 import * as netrecV3 from "@logic/netrecV3";
 import { findBestMatch } from "@logic/scrobble-matcher";
 import { checkAndMigrate, getMigrationStatus } from "@logic/netrecDream/migration";
 import { createDreamEngine } from "@logic/netrecDream";
+import { needsColdStart } from "@logic/preferences-store";
+import { devLog, devWarn, logError } from "@utils/logger";
 import "./i18n";
 
 async function safeStatus(): Promise<any> {
@@ -601,37 +605,56 @@ function BootLoader({ status }: { status: string }) {
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
-      {/* Logo */}
+      {/* App Icon - Pulsing */}
       <div style={{
-        fontSize: 42,
-        fontWeight: 900,
-        background: "linear-gradient(135deg, #00d4ff 0%, #8a2be2 100%)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
         marginBottom: 32,
-        letterSpacing: -1,
+        animation: "pulse 2s ease-in-out infinite",
       }}>
-        ShokaiShelf
+        <img
+          src="/build/icons/icon.png"
+          alt="ShokaiShelf"
+          style={{
+            width: 120,
+            height: 120,
+            objectFit: "contain",
+            filter: "drop-shadow(0 0 30px rgba(0, 212, 255, 0.3))",
+          }}
+        />
       </div>
 
-      {/* Spinner */}
-      <div
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: "50%",
-          border: "3px solid rgba(255,255,255,0.1)",
-          borderTop: "3px solid #00d4ff",
-          marginBottom: 24,
-          animation: "spin 0.8s linear infinite",
-        }}
-      />
-
       {/* Status */}
-      <p style={{ opacity: 0.6, fontSize: 14, fontWeight: 500 }}>{status}</p>
+      <p style={{
+        opacity: 0.8,
+        fontSize: 16,
+        fontWeight: 600,
+        letterSpacing: 0.5,
+      }}>
+        Starting ShokaiShelf...
+      </p>
+
+      {/* Sub-status */}
+      <p style={{
+        opacity: 0.5,
+        fontSize: 13,
+        fontWeight: 500,
+        marginTop: 8,
+      }}>
+        {status}
+      </p>
 
       <style>
-        {`@keyframes spin { from {transform: rotate(0deg);} to {transform: rotate(360deg);} }`}
+        {`
+          @keyframes pulse {
+            0%, 100% {
+              opacity: 1;
+              transform: scale(1);
+            }
+            50% {
+              opacity: 0.7;
+              transform: scale(0.95);
+            }
+          }
+        `}
       </style>
     </div>
   );
@@ -646,10 +669,12 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [avatar, setAvatar] = useState("");
+  const [showColdStart, setShowColdStart] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [bootStatus, setBootStatus] = useState(t('boot.starting'));
   const [engineReady, setEngineReady] = useState(true);
   const [migrating, setMigrating] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   const [scrobblerCandidate, setScrobblerCandidate] = useState<ScrobblerCandidate | null>(null);
   const [miruScrobble, setMiruScrobble] = useState<any>(null);
   const [lastScrobbledUrl, setLastScrobbledUrl] = useState<string | null>(null);
@@ -686,11 +711,11 @@ export default function App() {
         const result = await checkAndMigrate(userName);
 
         if (result.migrated) {
-          console.log("[App] Dream V4 migration successful");
+          devLog("[App] Dream V4 migration successful");
           // Initialize Dream engine
           createDreamEngine();
         } else if (result.profile) {
-          console.log("[App] Dream V4 profile already exists");
+          devLog("[App] Dream V4 profile already exists");
           createDreamEngine();
         }
 
@@ -700,32 +725,32 @@ export default function App() {
         createDreamEngine();
       }
     } catch (error) {
-      console.warn("[App] Dream migration check failed:", error);
+      devWarn("[App] Dream migration check failed:", error);
       setMigrating(false);
     }
   };
 
   const refresh = async () => {
     if (!hasBridge) {
-      console.log("No bridge found");
+      devLog("No bridge found");
       return;
     }
 
-    console.log("=== REFRESH START ===");
+    devLog("=== REFRESH START ===");
 
     try {
       setBootStatus(t('boot.checkingConfig'));
-      console.log("Calling needsSetup...");
+      devLog("Calling needsSetup...");
 
       const mustSetup = await Promise.race([
         window.shokai.app.needsSetup(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("needsSetup timeout")), 5000))
       ]);
 
-      console.log("needsSetup result:", mustSetup);
+      devLog("needsSetup result:", mustSetup);
 
       if (mustSetup) {
-        console.log("Setup required, showing setup screen");
+        devLog("Setup required, showing setup screen");
         setNeedsSetup(true);
         setLoggedIn(false);
         setLoading(false);
@@ -733,17 +758,17 @@ export default function App() {
       }
 
       setBootStatus(t('boot.connecting'));
-      console.log("Calling status...");
+      devLog("Calling status...");
 
       const status = await Promise.race([
         window.shokai.status(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("status timeout")), 5000))
       ]);
 
-      console.log("Status result:", status);
+      devLog("Status result:", status);
 
       if (!status.loggedIn) {
-        console.log("Not logged in, showing login screen");
+        devLog("Not logged in, showing login screen");
         setNeedsSetup(false);
         setLoggedIn(false);
         setLoading(false);
@@ -751,7 +776,7 @@ export default function App() {
       }
 
       setBootStatus(t('boot.loadingProfile'));
-      console.log("Loading profile...");
+      devLog("Loading profile...");
 
       let currentUserName = status.viewerName || "";
       try {
@@ -766,7 +791,7 @@ export default function App() {
           setUserLibrary(listsData?.lists || []);
         }
       } catch (e) {
-        console.log("Profile load failed, using status name:", e);
+        devLog("Profile load failed, using status name:", e);
         setUsername(status.viewerName || "");
       }
 
@@ -778,24 +803,46 @@ export default function App() {
         await checkDreamMigration(currentUserName);
       }
 
-      console.log("Everything loaded, showing app");
+      devLog("Everything loaded, showing app");
       setNeedsSetup(false);
       setLoggedIn(true);
       setLoading(false);
 
+      // Check if user needs cold start wizard
+      const totalEntries = userLibrary.reduce((sum: number, list: any) => {
+        return sum + (list.entries?.length || 0);
+      }, 0);
+
+      const needsCold = await needsColdStart(totalEntries);
+
+      if (needsCold) {
+        devLog("Showing cold start wizard");
+        setShowColdStart(true);
+        return;
+      }
+
+      // Show onboarding if first run
       const first = localStorage.getItem("shokai:firstRun");
       if (first === "1") {
         setShowOnboarding(true);
         localStorage.setItem("shokai:firstRun", "0");
       }
     } catch (error) {
-      console.error("REFRESH ERROR:", error);
+      logError("REFRESH ERROR:", error);
       // Bei Fehler: zeige Login-Screen als Fallback
       setNeedsSetup(false);
       setLoggedIn(false);
       setLoading(false);
     }
   };
+
+  // Stable callback for Dashboard loading state
+  const handleDashboardLoadingChange = useCallback((loading: boolean) => {
+    setDashboardLoading(loading);
+    if (loading) {
+      setBootStatus(t('dashboard.loadingDream'));
+    }
+  }, [t]);
 
   useEffect(() => {
     if (!hasBridge) return;
@@ -836,14 +883,14 @@ export default function App() {
           state: `Watching${episodeText}`,
           episode: candidate.episode,
         });
-        console.log('[App] Discord RPC updated (local):', candidate.cleanTitle);
+        devLog('[App] Discord RPC updated (local):', candidate.cleanTitle);
       }
 
       // Wenn wir in der Library einen sehr guten Match finden, boosten wir die Confidence
       if (userLibrary.length > 0) {
         const match = findBestMatch(candidate.cleanTitle, userLibrary);
         if (match.media && match.confidence > 0.85) {
-          console.log(`[App] Scrobbler Smart Match: ${candidate.cleanTitle} -> ${match.media.title.english}`);
+          devLog(`[App] Scrobbler Smart Match: ${candidate.cleanTitle} -> ${match.media.title.english}`);
 
           // Wenn extrem sicher, könnten wir hier auch auto-scrobbeln. 
           // Aber beim lokalen Scrobbler (Dateien) ist ein Toast oft sicherer.
@@ -873,7 +920,7 @@ export default function App() {
       // Ignore if it's the same URL we just handled
       if (lastScrobbledUrl === data.url && data.progress === 0) return;
 
-      console.log('[App] Miru scrobble:', data);
+      devLog('[App] Miru scrobble:', data);
 
       // Update Discord RPC with anime being watched
       if (data.title && (window as any).shokai?.discord) {
@@ -883,7 +930,7 @@ export default function App() {
           state: `Watching${episodeText}`,
           episode: data.episode,
         });
-        console.log('[App] Discord RPC updated:', data.title);
+        devLog('[App] Discord RPC updated:', data.title);
       }
 
       // Smart Matcher: Versuche ID aus Library oder Suche zu finden
@@ -895,7 +942,7 @@ export default function App() {
         if (match.media && match.confidence > 0.85) {
           mediaId = match.media.id;
           confidence = match.confidence;
-          console.log(`[App] Smart Match (Library): ${data.title} -> ${match.media.title.english} (${Math.round(confidence * 100)}%)`);
+          devLog(`[App] Smart Match (Library): ${data.title} -> ${match.media.title.english} (${Math.round(confidence * 100)}%)`);
         }
       }
 
@@ -903,7 +950,7 @@ export default function App() {
       if (data.progress === 0 && !data.completed) {
         // Wenn wir extrem sicher sind (>92%), überspringen wir den Toast und scrobbeln still
         if (mediaId && confidence > 0.92) {
-          console.log('[App] High confidence, skipping toast:', data.title);
+          devLog('[App] High confidence, skipping toast:', data.title);
           setLastScrobbledUrl(data.url);
           // Wir lernen das Match trotzdem im Scrobbler-Gedächtnis
           (window as any).shokai?.scrobbler?.confirmMatch(data.title, mediaId);
@@ -935,13 +982,13 @@ export default function App() {
 
           if (mediaId) {
             await saveEntry(mediaId, "CURRENT", data.episode);
-            console.log('[App] Auto-updated AniList:', mediaId, 'Episode', data.episode);
+            devLog('[App] Auto-updated AniList:', mediaId, 'Episode', data.episode);
 
             // Wenn wir erfolgreich waren, lernen wir das für die Zukunft!
             (window as any).shokai?.scrobbler?.confirmMatch(data.title, mediaId);
           } else {
             // FALLBACK: Kein Match gefunden - User muss manuell bestätigen
-            console.log('[App] No match found for 75% event, showing toast:', data.title);
+            devLog('[App] No match found for 75% event, showing toast:', data.title);
             setMiruScrobble({ ...data, mediaId: null, confidence: 0 });
             setLastScrobbledUrl(data.url);
 
@@ -952,7 +999,7 @@ export default function App() {
             });
           }
         } catch (err) {
-          console.error('[App] Auto-update failed:', err);
+          logError('[App] Auto-update failed:', err);
         }
       }
     });
@@ -968,7 +1015,7 @@ export default function App() {
     );
   }
 
-  // lädt gerade
+  // lädt gerade (initial boot only)
   if (loading || !engineReady) {
     return (
       <SettingsProvider>
@@ -993,6 +1040,38 @@ export default function App() {
     );
   }
 
+  // Show cold start wizard if needed
+  if (showColdStart) {
+    return (
+      <SettingsProvider>
+        <ColdStartWizard
+          onComplete={() => {
+            setShowColdStart(false);
+            // Check if should show onboarding
+            const first = localStorage.getItem("shokai:firstRun");
+            if (first === "1") {
+              setShowOnboarding(true);
+              localStorage.setItem("shokai:firstRun", "0");
+            }
+          }}
+          onSkip={() => {
+            setShowColdStart(false);
+            // Mark as completed even if skipped
+            import("@logic/preferences-store").then(({ completeColdStart }) => {
+              completeColdStart();
+            });
+            // Check if should show onboarding
+            const first = localStorage.getItem("shokai:firstRun");
+            if (first === "1") {
+              setShowOnboarding(true);
+              localStorage.setItem("shokai:firstRun", "0");
+            }
+          }}
+        />
+      </SettingsProvider>
+    );
+  }
+
   // echte App
   return (
     <SettingsProvider>
@@ -1004,7 +1083,10 @@ export default function App() {
             <AnimatePresence mode="popLayout">
               {page === "home" && (
                 <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <Dashboard onNavigate={setPage} />
+                  <Dashboard
+                    onNavigate={setPage}
+                    onLoadingChange={handleDashboardLoadingChange}
+                  />
                 </motion.div>
               )}
               {page === "feed" && (
@@ -1072,19 +1154,36 @@ export default function App() {
             try {
               const { saveEntry } = await import("./api/anilist");
               await saveEntry(mediaId, "CURRENT", miruScrobble.episode);
-              console.log('[App] Updated AniList:', mediaId, 'Episode', miruScrobble.episode);
+              devLog('[App] Updated AniList:', mediaId, 'Episode', miruScrobble.episode);
 
               // Teach the scrobbler!
               (window as any).shokai?.scrobbler?.confirmMatch(miruScrobble.title, mediaId);
 
             } catch (err) {
-              console.error('[App] Failed to update AniList:', err);
+              logError('[App] Failed to update AniList:', err);
             }
             setMiruScrobble(null);
           }}
           onDismiss={() => setMiruScrobble(null)}
         />
       )}
+
+      {/* Dashboard Loading Overlay - Keep BootLoader visible while dashboard loads */}
+      {dashboardLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 10000,
+        }}>
+          <BootLoader status={bootStatus} />
+        </div>
+      )}
+
+      {/* Rate Limit Toast */}
+      <RateLimitToast />
     </SettingsProvider>
   );
 }
