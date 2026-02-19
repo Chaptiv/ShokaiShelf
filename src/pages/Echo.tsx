@@ -257,7 +257,7 @@ export default function Echo() {
   if (!echoData || echoData.stats.totalAnime === 0) {
     return (
       <div className="echo-container">
-        <div className="echo-gradient-bg" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #020617 100%)' }} />
+        <div className="echo-gradient-bg" style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #020617 100%)' }} />
 
         {/* Header with period selection even on empty state */}
         <div className="echo-header">

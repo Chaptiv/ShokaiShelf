@@ -22,6 +22,7 @@ import {
   StarIcon, FireIcon, TvIcon, CalendarIcon
 } from "./icons/StatusIcons";
 import { sanitizeAniListHTML } from "../utils/sanitize";
+import { logError } from "@utils/logger";
 
 type ScoreFormat = "POINT_100" | "POINT_10" | "POINT_10_DECIMAL" | "POINT_5" | "POINT_3" | string;
 
@@ -104,7 +105,7 @@ export default function MediaDetailView_dream({
         onSaved?.();
       }, 1500);
     } catch (e) {
-      console.error("Failed to save:", e);
+      logError("Failed to save:", e);
     }
   }
 
@@ -117,7 +118,7 @@ export default function MediaDetailView_dream({
       onSaved?.();
       onClose();
     } catch (e) {
-      console.error("Failed to remove:", e);
+      logError("Failed to remove:", e);
     }
   }
 
@@ -168,7 +169,7 @@ export default function MediaDetailView_dream({
           left: "3vw",
           right: "3vw",
           bottom: "3vh",
-          background: "#0f172a",
+          background: "#0a0a0a",
           borderRadius: 24,
           overflow: "hidden",
           zIndex: 1000,

@@ -1,20 +1,20 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, lazy, Suspense } from "react";
+import appIcon from '/build/icons/icon.png';
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import { SettingsProvider } from "@state/SettingsContext";
 import Sidebar from "@shingen/Sidebar";
-import Dashboard from "@pages/Dashboard_dream"; // 🎨 Dream Version
-// Feed.tsx entfernt - Social_dream.tsx wird stattdessen verwendet
-import Search from "@pages/Search_dream"; // 🎨 Dream Version
-import Library from "@pages/Library_dream"; // 🎨 Dream Version
-import Social from "@pages/Social_dream"; // 🎨 Dream Version
-import Settings from "@pages/Settings";
-import Echo from "@pages/Echo";
-import Achievements from "@pages/Achievements";
+const Dashboard = lazy(() => import("@pages/Dashboard_dream"));
+const Search = lazy(() => import("@pages/Search_dream"));
+const Library = lazy(() => import("@pages/Library_dream"));
+const Social = lazy(() => import("@pages/Social_dream"));
+const Settings = lazy(() => import("@pages/Settings"));
+const Echo = lazy(() => import("@pages/Echo"));
+const Achievements = lazy(() => import("@pages/Achievements"));
 import ScrobblerToast from "@components/ScrobblerToast";
 import UpdateBanner from "@components/UpdateBanner";
 import RateLimitToast from "@components/RateLimitToast";
-import ColdStartWizard from "@components/ColdStartWizard";
+import FirstTimeExperience from "@components/FirstTimeExperience";
 import type { ScrobblerCandidate } from "../electron/scrobbler";
 import * as anilistAPI from "@api/anilist";
 import * as netrecV3 from "@logic/netrecV3";
@@ -98,36 +98,36 @@ function Onboarding({ onClose }: { onClose: () => void }) {
   const steps = [
     {
       title: t('onboarding.welcome'),
-      subtitle: t('onboarding.thankYou'),
-      body: t('onboarding.intro'),
+      subtitle: t('onboarding.welcomeSubtitle'),
+      body: t('onboarding.welcomeBody'),
       icon: OnboardingIcons.welcome,
       badge: t('onboarding.setupComplete'),
     },
     {
-      title: t('onboarding.howItWorks'),
-      subtitle: t('onboarding.navigationDesc'),
+      title: t('onboarding.navigation'),
+      subtitle: t('onboarding.navigationSubtitle'),
       body: t('onboarding.navigationBody'),
       icon: OnboardingIcons.navigate,
       badge: t('onboarding.navigationBadge'),
     },
     {
-      title: "AnimeNetRec V2",
-      subtitle: t('onboarding.recEngineTitle'),
-      body: t('onboarding.recEngineDesc'),
+      title: t('onboarding.dreamEngine'),
+      subtitle: t('onboarding.dreamEngineSubtitle'),
+      body: t('onboarding.dreamEngineBody'),
       icon: OnboardingIcons.brain,
       badge: t('onboarding.recEngineBadge'),
     },
     {
-      title: t('onboarding.localWorker'),
-      subtitle: t('onboarding.localWorkerTitle'),
-      body: t('onboarding.localWorkerDesc'),
+      title: t('onboarding.smartFeatures'),
+      subtitle: t('onboarding.smartFeaturesSubtitle'),
+      body: t('onboarding.smartFeaturesBody'),
       icon: OnboardingIcons.box,
       badge: t('onboarding.localPower'),
     },
     {
-      title: t('onboarding.publicBuilds'),
-      subtitle: t('onboarding.publicBuildsTitle'),
-      body: t('onboarding.publicBuildsDesc'),
+      title: t('onboarding.ready'),
+      subtitle: t('onboarding.readySubtitle'),
+      body: t('onboarding.readyBody'),
       icon: OnboardingIcons.share,
       badge: t('onboarding.sharing'),
     },
@@ -591,68 +591,78 @@ function LoginRequired({ onRetry }: { onRetry: () => void }) {
 }
 
 /* ───────────────── Fancy Loader ───────────────── */
-function BootLoader({ status }: { status: string }) {
+function BootLoader({ status, style }: { status: string; style?: React.CSSProperties }) {
   return (
     <div
       style={{
+        position: "relative",
         height: "100vh",
-        background: "linear-gradient(135deg, #0a0e27 0%, #000000 100%)",
+        background: "#0D0E1D",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         color: "#fff",
         fontFamily: "Inter, system-ui, sans-serif",
+        ...style,
       }}
     >
-      {/* App Icon - Pulsing */}
-      <div style={{
-        marginBottom: 32,
-        animation: "pulse 2s ease-in-out infinite",
-      }}>
+      {/* Logo — no container, background matches PNG so edges vanish */}
+      <div style={{ marginBottom: 40 }}>
         <img
-          src="/build/icons/icon.png"
+          src={appIcon}
           alt="ShokaiShelf"
-          style={{
-            width: 120,
-            height: 120,
-            objectFit: "contain",
-            filter: "drop-shadow(0 0 30px rgba(0, 212, 255, 0.3))",
-          }}
+          style={{ width: 120, height: 120, objectFit: "contain", display: "block" }}
         />
       </div>
 
-      {/* Status */}
+      {/* App name */}
       <p style={{
-        opacity: 0.8,
-        fontSize: 16,
-        fontWeight: 600,
-        letterSpacing: 0.5,
+        fontSize: 18,
+        fontWeight: 700,
+        letterSpacing: "0.02em",
+        margin: "0 0 6px 0",
+        background: "linear-gradient(90deg, #ffffff 0%, rgba(255,255,255,0.75) 100%)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
       }}>
-        Starting ShokaiShelf...
+        ShokaiShelf
       </p>
 
-      {/* Sub-status */}
+      {/* Status */}
       <p style={{
-        opacity: 0.5,
+        opacity: 0.4,
         fontSize: 13,
-        fontWeight: 500,
-        marginTop: 8,
+        fontWeight: 400,
+        margin: 0,
+        letterSpacing: "0.01em",
       }}>
         {status}
       </p>
 
+      {/* Thin progress shimmer bar */}
+      <div style={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 2,
+        background: "rgba(255,255,255,0.04)",
+        overflow: "hidden",
+      }}>
+        <div style={{
+          height: "100%",
+          width: "40%",
+          background: "linear-gradient(90deg, transparent, rgba(0,212,255,0.6), transparent)",
+          animation: "bootShimmer 1.8s ease-in-out infinite",
+        }} />
+      </div>
+
       <style>
         {`
-          @keyframes pulse {
-            0%, 100% {
-              opacity: 1;
-              transform: scale(1);
-            }
-            50% {
-              opacity: 0.7;
-              transform: scale(0.95);
-            }
+          @keyframes bootShimmer {
+            0% { transform: translateX(-250%); }
+            100% { transform: translateX(350%); }
           }
         `}
       </style>
@@ -660,17 +670,23 @@ function BootLoader({ status }: { status: string }) {
   );
 }
 
+const SuspensedPage = ({ children, status = "Loading..." }: { children: React.ReactNode; status?: string }) => (
+  <Suspense fallback={<BootLoader status={status} style={{ height: "100%", background: "transparent" }} />}>
+    {children}
+  </Suspense>
+);
+
 /* ───────────────── App ───────────────── */
 export default function App() {
   const { t } = useTranslation();
   const [page, setPage] = useState<PageKey>("home");
   const [loading, setLoading] = useState(true);
-  const [needsSetup, setNeedsSetup] = useState(false);
+
+  const [showFTUE, setShowFTUE] = useState(false);
+  const [ftueState, setFtueState] = useState({ needsSetup: false, needsLogin: false, needsColdStart: false });
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
-  const [avatar, setAvatar] = useState("");
-  const [showColdStart, setShowColdStart] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [avatar, setAvatar] = useState(""); // avatar
   const [bootStatus, setBootStatus] = useState(t('boot.starting'));
   const [engineReady, setEngineReady] = useState(true);
   const [migrating, setMigrating] = useState(false);
@@ -679,6 +695,7 @@ export default function App() {
   const [miruScrobble, setMiruScrobble] = useState<any>(null);
   const [lastScrobbledUrl, setLastScrobbledUrl] = useState<string | null>(null);
   const [userLibrary, setUserLibrary] = useState<any[]>([]);
+
 
   const hasBridge = typeof window !== "undefined" && !!window.shokai;
 
@@ -750,8 +767,9 @@ export default function App() {
       devLog("needsSetup result:", mustSetup);
 
       if (mustSetup) {
-        devLog("Setup required, showing setup screen");
-        setNeedsSetup(true);
+        devLog("Setup required, triggering FTUE");
+        setFtueState({ needsSetup: true, needsLogin: true, needsColdStart: true });
+        setShowFTUE(true);
         setLoggedIn(false);
         setLoading(false);
         return;
@@ -768,8 +786,11 @@ export default function App() {
       devLog("Status result:", status);
 
       if (!status.loggedIn) {
-        devLog("Not logged in, showing login screen");
-        setNeedsSetup(false);
+        devLog("Not logged in, showing FTUE login step");
+        // Always show FTUE for login — cold start + tour already done if ftueCompleted
+        const ftueDone = localStorage.getItem("shokai:ftueCompleted") === "true";
+        setFtueState({ needsSetup: false, needsLogin: true, needsColdStart: !ftueDone });
+        setShowFTUE(true);
         setLoggedIn(false);
         setLoading(false);
         return;
@@ -780,12 +801,16 @@ export default function App() {
 
       let currentUserName = status.viewerName || "";
       try {
-        const me = await anilistAPI.viewer();
+        setBootStatus(t('boot.initEngine'));
+        const [me] = await Promise.all([
+          anilistAPI.viewer(),
+          preloadEngine(),
+        ]);
         currentUserName = me?.name || status.viewerName || "";
         setUsername(currentUserName);
         setAvatar(me?.avatar?.large || "");
 
-        // Load library for smart scrobbling
+        // Load library for smart scrobbling (needs me.id, so sequential)
         if (me?.id) {
           const listsData = await anilistAPI.userLists(me.id);
           setUserLibrary(listsData?.lists || []);
@@ -795,16 +820,12 @@ export default function App() {
         setUsername(status.viewerName || "");
       }
 
-      setBootStatus(t('boot.initEngine'));
-      await preloadEngine();
-
       // Check and perform Dream V4 migration
       if (currentUserName) {
         await checkDreamMigration(currentUserName);
       }
 
       devLog("Everything loaded, showing app");
-      setNeedsSetup(false);
       setLoggedIn(true);
       setLoading(false);
 
@@ -816,21 +837,23 @@ export default function App() {
       const needsCold = await needsColdStart(totalEntries);
 
       if (needsCold) {
-        devLog("Showing cold start wizard");
-        setShowColdStart(true);
+        devLog("Showing cold start via FTUE");
+        setFtueState({ needsSetup: false, needsLogin: false, needsColdStart: true });
+        setShowFTUE(true);
         return;
       }
 
-      // Show onboarding if first run
+      // Check for first run flag regarding Onboarding tour
       const first = localStorage.getItem("shokai:firstRun");
       if (first === "1") {
-        setShowOnboarding(true);
+        setFtueState({ needsSetup: false, needsLogin: false, needsColdStart: false }); // All false = Tour
+        setShowFTUE(true);
         localStorage.setItem("shokai:firstRun", "0");
       }
     } catch (error) {
       logError("REFRESH ERROR:", error);
       // Bei Fehler: zeige Login-Screen als Fallback
-      setNeedsSetup(false);
+      setFtueState({ needsSetup: false, needsLogin: true, needsColdStart: false });
       setLoggedIn(false);
       setLoading(false);
     }
@@ -1024,48 +1047,15 @@ export default function App() {
     );
   }
 
-  if (needsSetup) {
+  if (showFTUE) {
     return (
       <SettingsProvider>
-        <SetupScreen />
-      </SettingsProvider>
-    );
-  }
-
-  if (!loggedIn) {
-    return (
-      <SettingsProvider>
-        <LoginRequired onRetry={refresh} />
-      </SettingsProvider>
-    );
-  }
-
-  // Show cold start wizard if needed
-  if (showColdStart) {
-    return (
-      <SettingsProvider>
-        <ColdStartWizard
+        <FirstTimeExperience
+          initialState={ftueState}
           onComplete={() => {
-            setShowColdStart(false);
-            // Check if should show onboarding
-            const first = localStorage.getItem("shokai:firstRun");
-            if (first === "1") {
-              setShowOnboarding(true);
-              localStorage.setItem("shokai:firstRun", "0");
-            }
-          }}
-          onSkip={() => {
-            setShowColdStart(false);
-            // Mark as completed even if skipped
-            import("@logic/preferences-store").then(({ completeColdStart }) => {
-              completeColdStart();
-            });
-            // Check if should show onboarding
-            const first = localStorage.getItem("shokai:firstRun");
-            if (first === "1") {
-              setShowOnboarding(true);
-              localStorage.setItem("shokai:firstRun", "0");
-            }
+            setShowFTUE(false);
+            localStorage.setItem("shokai:ftueCompleted", "true");
+            refresh();
           }}
         />
       </SettingsProvider>
@@ -1080,55 +1070,71 @@ export default function App() {
         <Sidebar page={page} setPage={setPage} authed={true} username={username} avatar={avatar} hideCharacters />
         <div style={{ flex: 1, overflowY: "auto", background: "#060912" }}>
           <div style={{ padding: page === "home" ? 0 : 20 }}>
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence mode="popLayout" initial={false}>
               {page === "home" && (
                 <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <Dashboard
-                    onNavigate={setPage}
-                    onLoadingChange={handleDashboardLoadingChange}
-                  />
+                  <Suspense fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><BootLoader status={t('dashboard.loadingDream')} style={{ height: "auto", background: "transparent" }} /></div>}>
+                    <Dashboard
+                      onNavigate={setPage}
+                      onLoadingChange={handleDashboardLoadingChange}
+                    />
+                  </Suspense>
                 </motion.div>
               )}
               {page === "feed" && (
                 <motion.div key="feed" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Social />
+                  <SuspensedPage status={t('common.loading')}>
+                    <Social />
+                  </SuspensedPage>
                 </motion.div>
               )}
               {page === "search" && (
                 <motion.div key="search" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Search />
+                  <SuspensedPage status={t('common.loading')}>
+                    <Search />
+                  </SuspensedPage>
                 </motion.div>
               )}
               {page === "library" && (
                 <motion.div key="library" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Library />
+                  <SuspensedPage status={t('common.loading')}>
+                    <Library />
+                  </SuspensedPage>
                 </motion.div>
               )}
               {page === "social" && (
                 <motion.div key="social" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Social />
+                  <SuspensedPage status={t('common.loading')}>
+                    <Social />
+                  </SuspensedPage>
                 </motion.div>
               )}
               {page === "settings" && (
                 <motion.div key="settings" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Settings onLoggedIn={() => refresh()} />
+                  <SuspensedPage status={t('common.loading')}>
+                    <Settings onLoggedIn={() => refresh()} />
+                  </SuspensedPage>
                 </motion.div>
               )}
               {page === "echo" && (
                 <motion.div key="echo" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Echo />
+                  <SuspensedPage status={t('common.loading')}>
+                    <Echo />
+                  </SuspensedPage>
                 </motion.div>
               )}
               {page === "achievements" && (
                 <motion.div key="achievements" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Achievements />
+                  <SuspensedPage status={t('common.loading')}>
+                    <Achievements />
+                  </SuspensedPage>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
       </div>
-      {showOnboarding && <Onboarding onClose={() => setShowOnboarding(false)} />}
+
 
       {scrobblerCandidate && (
         <ScrobblerToast
@@ -1169,11 +1175,11 @@ export default function App() {
       )}
 
       {/* Dashboard Loading Overlay - Keep BootLoader visible while dashboard loads */}
-      {dashboardLoading && (
+      {dashboardLoading && page === "home" && (
         <div style={{
           position: 'fixed',
           top: 0,
-          left: 0,
+          left: 72,
           right: 0,
           bottom: 0,
           zIndex: 10000,
