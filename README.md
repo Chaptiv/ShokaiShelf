@@ -308,6 +308,16 @@ ShokaiShelf 0.2.0 "NetRec Dream" (Public Beta)  <-- You are here
 
 ---
 
+## Disclaimer
+
+ShokaiShelf is provided **"as is"**, without warranty of any kind, express or implied. This includes, but is not limited to, warranties of merchantability, fitness for a particular purpose, and non-infringement.
+ 
+- The developer is **not responsible** for any data loss, account issues, or unintended behavior that may occur from using this application.
+- ShokaiShelf interacts with third-party services (AniList, Discord) over their public APIs. The developer is **not affiliated with, endorsed by, or responsible for** any of these services or any changes they make to their platforms.
+- Use this software **at your own risk**. This is a beta product — bugs happen.
+ 
+---
+
 ## License
 
 **Copyright (c) 2024-2026 Chaptiv.**
