@@ -324,5 +324,5 @@ In short: **look, learn, contribute — but don't copy it into your own app or s
 ---
 
 <p align="center">
-  <sub>Built with too much coffee and not enough sleep by <a href="https://github.com/Chaptiv">Maximilian Erb</a>.</sub>
+  <sub>Built without enough sleep by <a href="https://github.com/Chaptiv">Chaptiv</a>.</sub>
 </p>
