@@ -121,13 +121,13 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
         if (step === 3 || step === 4 || step === 5) {
             // Save preferences incrementally or at end of step 5
             if (step === 5) {
-                await savePreferences({
+                savePreferences({
                     favoriteGenres: selectedGenres,
                     dislikedGenres: [],
                     preferredTags: selectedTags,
                     selectedAnimeIds: selectedAnime,
-                });
-                await completeColdStart();
+                }).catch((e) => logError("savePreferences failed", e));
+                completeColdStart().catch((e) => logError("completeColdStart failed", e));
             }
         }
 
@@ -159,7 +159,7 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
     const skipColdStart = async () => {
         // Mark cold start complete? Or just skip?
         // Usually skip explicitly implies "I don't want to do this now" -> completeColdStart()
-        await completeColdStart();
+        completeColdStart().catch((e) => logError("skipColdStart -> complete failed", e));
         setDirection(1);
         setStep(6); // Jump to Tour
     };
@@ -349,7 +349,7 @@ function GenreStep({ selected, setSelected, onNext, onBack, onSkip, t }: any) {
             onNext={onNext}
             onBack={onBack}
             onSkip={onSkip}
-            canProceed={selected.length >= 1} // Relaxed constraint for testing
+            canProceed={selected.length >= 3}
         >
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
                 {POPULAR_GENRES.map(g => (
@@ -565,23 +565,24 @@ function CenteredLayout({ title, subtitle, children }: any) {
 }
 
 function FlowLayout({ title, subtitle, children, onNext, onBack, onSkip, canProceed }: any) {
+    const { t } = useTranslation();
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '40px 20px' }}>
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div style={{ textAlign: 'center', marginBottom: 32, flexShrink: 0 }}>
                 <h2 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px 0' }}>{title}</h2>
                 {subtitle && <p style={{ fontSize: 16, opacity: 0.6, margin: 0 }}>{subtitle}</p>}
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', minHeight: 0 }}>
                 {children}
             </div>
 
-            <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', paddingLeft: 20, paddingRight: 20 }}>
+            <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', paddingLeft: 20, paddingRight: 20, flexShrink: 0 }}>
                 <div style={{ display: 'flex', gap: 12 }}>
-                    {onBack && <Button onClick={onBack} secondary>Back</Button>}
-                    {onSkip && <Button onClick={onSkip} ghost>Skip</Button>}
+                    {onBack && <Button onClick={onBack} secondary>{t('ftue.back')}</Button>}
+                    {onSkip && <Button onClick={onSkip} ghost>{t('ftue.skip')}</Button>}
                 </div>
-                <Button onClick={onNext} primary disabled={!canProceed}>Continue</Button>
+                <Button onClick={onNext} primary disabled={!canProceed}>{t('ftue.continue')}</Button>
             </div>
         </div>
     );

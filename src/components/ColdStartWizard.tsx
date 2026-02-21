@@ -89,15 +89,15 @@ export default function ColdStartWizard({ onComplete, onSkip }: ColdStartWizardP
 
   const handleComplete = async () => {
     // Save preferences
-    await savePreferences({
+    savePreferences({
       favoriteGenres: selectedGenres,
       dislikedGenres: dislikedGenres,
       preferredTags: selectedTags,
       selectedAnimeIds: selectedAnime,
-    });
+    }).catch(e => logError("savePreferences error:", e));
 
     // Mark cold start as completed
-    await completeColdStart();
+    completeColdStart().catch(e => logError("completeColdStart error:", e));
 
     onComplete();
   };
