@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import tokens from "@shingen/tokens";
 import { logoutAniList } from "@api/anilist";
+import logo from "../assets/logo.png";
 
-type PageKey = "home" | "feed" | "search" | "library" | "settings" | "echo";
+type PageKey = "home" | "feed" | "search" | "library" | "settings" | "echo" | "achievements";
 
 type Props = {
   page: PageKey;
@@ -69,7 +70,7 @@ export default function Sidebar({ page, setPage, authed, username, avatar }: Pro
         backdropFilter: "blur(20px)",
         padding: 8,
         display: "grid",
-        gridTemplateRows: "auto 1fr",
+        gridTemplateRows: "auto 1fr auto",
         alignItems: "start",
         justifyItems: "center",
         gap: 6,
@@ -150,7 +151,7 @@ export default function Sidebar({ page, setPage, authed, username, avatar }: Pro
             <MenuBtn onClick={() => { setMenuOpen(false); setPage("echo"); }} icon={<EchoIcon />}>
               Echo
             </MenuBtn>
-            <MenuBtn onClick={() => { setMenuOpen(false); setPage("achievements" as any); }} icon={<AchievementIcon />}>
+            <MenuBtn onClick={() => { setMenuOpen(false); setPage("achievements"); }} icon={<AchievementIcon />}>
               {t('nav.achievements')}
             </MenuBtn>
             <MenuBtn onClick={() => { setMenuOpen(false); setPage("settings"); }} icon={<SettingsIcon />}>
@@ -195,6 +196,11 @@ export default function Sidebar({ page, setPage, authed, username, avatar }: Pro
           <LibraryIcon />
         </RailBtn>
       </nav>
+
+      {/* Footer Branding */}
+      <div style={{ paddingBottom: 16, display: "flex", flexDirection: "column", alignItems: "center", opacity: 0.3, transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.8"} onMouseLeave={e => e.currentTarget.style.opacity = "0.3"}>
+        <img src={logo} alt="ShokaiShelf" style={{ width: 28, height: 28 }} />
+      </div>
     </aside>
   );
 }

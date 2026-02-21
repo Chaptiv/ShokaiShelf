@@ -23,6 +23,19 @@ export default defineConfig({
       ignored: ['**/node_modules/**', '**/.git/**', '**/electron/**/*.js', '**/release/**'],
     },
   },
+  build: {
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-i18n': ['i18next', 'react-i18next'],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: "jsdom",

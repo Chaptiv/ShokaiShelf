@@ -104,14 +104,15 @@ function startAuthServer() {
       }
 
       try {
+        const { client_id: cid, client_secret: csecret, redirect_uri: ruri } = cfg();
         const tokenRes = await fetch("https://anilist.co/api/v2/oauth/token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             grant_type: "authorization_code",
-            client_id,
-            client_secret,
-            redirect_uri,
+            client_id: cid,
+            client_secret: csecret,
+            redirect_uri: ruri,
             code,
           }),
         });
@@ -146,11 +147,11 @@ function startAuthServer() {
           }
           res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
           res.end(`<!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ShokaiShelf - Anmeldung erfolgreich</title>
+  <title>ShokaiShelf - Login successful</title>
   <style>
     * {
       margin: 0;
@@ -300,11 +301,11 @@ function startAuthServer() {
       </div>
     </div>
 
-    <h1>Anmeldung erfolgreich!</h1>
-    <p>Du wurdest erfolgreich mit AniList verbunden.</p>
+    <h1>Login successful!</h1>
+    <p>You have been successfully connected to AniList.</p>
 
     <div class="info">
-      Du kannst dieses Fenster jetzt <strong>schließen</strong> und zu ShokaiShelf zurückkehren.
+      You can now <strong>close</strong> this window and return to ShokaiShelf.
     </div>
   </div>
 </body>

@@ -87,7 +87,6 @@ export default function Achievements() {
       padding: '40px 60px',
       color: 'white',
       minHeight: '100vh',
-      background: '#060912',
     }}>
       {/* Header Section */}
       <div style={{ marginBottom: 48, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>

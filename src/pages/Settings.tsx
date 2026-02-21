@@ -407,7 +407,6 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
     <div style={{
       display: "flex",
       minHeight: "100vh",
-      background: DREAM.colors.background,
       color: "white",
     }}>
       {/* ========== SIDEBAR ========== */}
@@ -490,7 +489,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
             }} />
             {t('settings.engineActive')}
           </div>
-          <div style={{ marginTop: 8, opacity: 0.7 }}>v0.4.0</div>
+          <div style={{ marginTop: 8, opacity: 0.7 }}>v0.2.0</div>
         </div>
       </div>
 

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { searchAnime, saveEntry, deleteEntry, mediaDetails, viewerCached, type Media } from "../api/anilist";
+import { searchAnime, saveEntry, deleteEntry, mediaDetails, viewerCached, trendingAnimeCached, type Media } from "../api/anilist";
 import { saveFeedback, getLikedMediaIds, getDislikedMediaIds } from "../logic/feedback-store";
-import MoodBubbles, { type VibeDef } from "../components/MoodBubbles";
 import DreamCard from "../components/DreamCard";
 import MediaDetailView_dream from "../components/MediaDetailView_dream";
 import { type FeedbackReason } from "../components/FeedbackPopover";
@@ -11,8 +10,8 @@ import { AiOutlineSearch, AiOutlineClose } from "react-icons/ai";
 import FeedbackModalV4 from "../components/FeedbackModalV4";
 import { getDreamEngine } from "../logic/netrecDream";
 import type { GranularReason } from "../logic/netrecDream/dream-types";
-import { devLog, devWarn, logError } from "@utils/logger";
-
+import { logError } from "@utils/logger";
+import { genreOverlap } from "@logic/netrecV3";
 
 // Debounce Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -26,22 +25,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-// Search Result Types
-interface TagResult {
-  type: "tag";
-  name: string;
-  count: number;
-  color: string;
-}
-
-interface MediaResult {
-  type: "media";
-  data: any;
-}
-
-type SearchResult = TagResult | MediaResult;
-
-// Popular Tags for suggestions
+// Popular Tags for genre chips
 const POPULAR_TAGS = [
   { name: "Action", color: "#ef4444" },
   { name: "Romance", color: "#ec4899" },
@@ -70,63 +54,130 @@ function saveRecentSearch(query: string) {
   } catch { }
 }
 
-// Tag Result Card Component
-function TagResultCard({
-  tag,
-  onClick,
+// Horizontal scroll row component
+function AnimeRow({
+  title,
+  items,
+  onCardClick,
 }: {
-  tag: TagResult;
-  onClick: () => void;
+  title: string;
+  items: Media[];
+  onCardClick: (id: number) => void;
 }) {
-  const { t } = useTranslation();
+  if (items.length === 0) return null;
+
   return (
     <motion.div
-      whileHover={{ scale: 1.02, x: 4 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      style={{
-        gridColumn: "span 2",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "20px 24px",
-        background: `linear-gradient(135deg, ${tag.color}15 0%, ${tag.color}08 100%)`,
-        border: `1px solid ${tag.color}30`,
-        borderRadius: "14px",
-        cursor: "pointer",
-        transition: "all 0.2s",
-      }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{ marginBottom: "48px" }}
     >
-      <div>
-        <h3 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "4px" }}>
-          {tag.name}
-        </h3>
-        <p style={{ opacity: 0.5, fontSize: "13px" }}>{tag.count}+ {t("common.anime")}</p>
-      </div>
-      <motion.div
+      <h3
         style={{
-          fontSize: "24px",
-          color: tag.color,
-          opacity: 0.8,
+          fontSize: "14px",
+          fontWeight: 700,
+          opacity: 0.5,
+          marginBottom: "16px",
+          textTransform: "uppercase",
+          letterSpacing: "0.5px",
         }}
       >
-        →
-      </motion.div>
+        {title}
+      </h3>
+      <div
+        className="anime-row-scroll"
+        style={{
+          display: "flex",
+          gap: "12px",
+          overflowX: "auto",
+          paddingBottom: "8px",
+          scrollBehavior: "smooth",
+        }}
+      >
+        {items.map((anime) => {
+          const cover =
+            anime.coverImage?.extraLarge || anime.coverImage?.large || "";
+          const displayTitle =
+            anime.title?.english || anime.title?.romaji || "Unknown";
+          return (
+            <motion.div
+              key={anime.id}
+              whileHover={{ scale: 1.04, y: -4 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => onCardClick(anime.id)}
+              style={{
+                flexShrink: 0,
+                width: "160px",
+                height: "240px",
+                borderRadius: "10px",
+                overflow: "hidden",
+                cursor: "pointer",
+                position: "relative",
+                background: "#1e293b",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+              }}
+            >
+              {cover && (
+                <img
+                  src={cover}
+                  alt={displayTitle}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              )}
+              {/* Title overlay */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  padding: "24px 10px 10px",
+                  background:
+                    "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "white",
+                    lineHeight: 1.3,
+                    margin: 0,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {displayTitle}
+                </p>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
     </motion.div>
   );
 }
 
-// Empty State Component
+// Empty State — shown when there is no active query
 function EmptyState({
   recentSearches,
   onRecentClick,
-  onVibeSelect,
   onTagClick,
+  trendingItems,
+  onCardClick,
 }: {
   recentSearches: string[];
   onRecentClick: (query: string) => void;
-  onVibeSelect: (vibe: VibeDef) => void;
   onTagClick: (tag: string) => void;
+  trendingItems: Media[];
+  onCardClick: (id: number) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -136,9 +187,18 @@ function EmptyState({
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{ marginBottom: "48px" }}
+          style={{ marginBottom: "40px" }}
         >
-          <h3 style={{ fontSize: "14px", fontWeight: 700, opacity: 0.5, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          <h3
+            style={{
+              fontSize: "14px",
+              fontWeight: 700,
+              opacity: 0.5,
+              marginBottom: "16px",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}
+          >
             {t("search.recentSearches")}
           </h3>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
@@ -167,15 +227,30 @@ function EmptyState({
         </motion.div>
       )}
 
-      {/* Popular Genres */}
+      {/* Trending Now */}
+      <AnimeRow
+        title={t("search.trendingNow")}
+        items={trendingItems}
+        onCardClick={onCardClick}
+      />
+
+      {/* Browse by Genre */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        style={{ marginBottom: "48px" }}
       >
-        <h3 style={{ fontSize: "14px", fontWeight: 700, opacity: 0.5, marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-          {t("search.popularGenres")}
+        <h3
+          style={{
+            fontSize: "14px",
+            fontWeight: 700,
+            opacity: 0.5,
+            marginBottom: "16px",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+          }}
+        >
+          {t("search.browseGenres")}
         </h3>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
           {POPULAR_TAGS.map((tag, i) => (
@@ -204,64 +279,7 @@ function EmptyState({
           ))}
         </div>
       </motion.div>
-
-      {/* Mood Bubbles */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-        <h3 style={{ fontSize: "14px", fontWeight: 700, opacity: 0.5, marginBottom: "24px", textTransform: "uppercase", letterSpacing: "0.5px", textAlign: "center" }}>
-          {t("search.orChooseVibe")}
-        </h3>
-        <MoodBubbles onSelect={onVibeSelect} />
-      </motion.div>
     </div>
-  );
-}
-
-// Active Vibe Badge
-function ActiveVibeBadge({
-  vibe,
-  onClear,
-}: {
-  vibe: VibeDef;
-  onClear: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9, y: -10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: -10 }}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "8px",
-        padding: "8px 16px",
-        background: `${vibe.color}20`,
-        border: `1px solid ${vibe.color}50`,
-        borderRadius: "99px",
-        marginBottom: "24px",
-      }}
-    >
-      <span style={{ fontSize: "18px" }}>{vibe.emoji}</span>
-      <span style={{ fontWeight: 600, color: "white" }}>{vibe.name} Vibe</span>
-      <button
-        onClick={onClear}
-        style={{
-          background: "none",
-          border: "none",
-          color: "rgba(255,255,255,0.6)",
-          cursor: "pointer",
-          padding: "2px",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        <AiOutlineClose size={16} />
-      </button>
-    </motion.div>
   );
 }
 
@@ -271,13 +289,13 @@ export default function SearchDream() {
   const debouncedQuery = useDebounce(query, 400);
   const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedVibe, setSelectedVibe] = useState<VibeDef | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<Media | null>(null);
   const [viewer, setViewer] = useState<any>(null);
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
   const [dislikedIds, setDislikedIds] = useState<Set<number>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
+  const trendingPool = useRef<Media[]>([]);
 
   // Dream V4 Feedback Modal State
   const [feedbackModal, setFeedbackModal] = useState<{
@@ -285,10 +303,14 @@ export default function SearchDream() {
     type: 'like' | 'dislike';
   } | null>(null);
 
-  // Load recent searches and viewer
+  // Load recent searches, viewer, and trending pool on mount
   useEffect(() => {
     setRecentSearches(getRecentSearches());
     viewerCached().then(setViewer).catch(() => { });
+    // Fire-and-forget: load trending pool into ref
+    trendingAnimeCached()
+      .then((data) => { trendingPool.current = data; })
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -300,12 +322,32 @@ export default function SearchDream() {
   useEffect(() => {
     if (debouncedQuery.length >= 2) {
       performSearch(debouncedQuery);
-    } else if (selectedVibe) {
-      searchByVibe(selectedVibe);
     } else {
       setResults([]);
     }
-  }, [debouncedQuery, selectedVibe]);
+  }, [debouncedQuery]);
+
+  // Trending items derived from the ref (only used in empty state)
+  const [trendingItems, setTrendingItems] = useState<Media[]>([]);
+  useEffect(() => {
+    trendingAnimeCached()
+      .then((data) => {
+        trendingPool.current = data;
+        setTrendingItems(data);
+      })
+      .catch(() => { });
+  }, []);
+
+  // "Similar" row: top result genres filtered from trending pool
+  const similarItems = useMemo(() => {
+    if (results.length === 0 || trendingPool.current.length === 0) return [];
+    const topGenres: string[] = results[0]?.genres ?? [];
+    if (topGenres.length === 0) return [];
+    const resultIds = new Set(results.map((r) => r.id));
+    return trendingPool.current
+      .filter((anime) => !resultIds.has(anime.id) && genreOverlap(anime, topGenres) > 0)
+      .slice(0, 12);
+  }, [results]);
 
   async function performSearch(searchQuery: string) {
     setIsSearching(true);
@@ -321,52 +363,28 @@ export default function SearchDream() {
     }
   }
 
-  async function searchByVibe(vibe: VibeDef) {
-    setIsSearching(true);
-    try {
-      // Search by genre (vibe's primary genre)
-      const genre = vibe.genres[0];
-      const res = await searchAnime(genre, 40);
-      setResults(res);
-    } catch (e) {
-      logError("Vibe search error:", e);
-    } finally {
-      setIsSearching(false);
-    }
-  }
-
-  function handleVibeSelect(vibe: VibeDef) {
-    setSelectedVibe(vibe);
-    setQuery("");
-  }
-
   function handleTagClick(tag: string) {
     setQuery(tag);
-    setSelectedVibe(null);
     inputRef.current?.focus();
   }
 
   function handleRecentClick(search: string) {
     setQuery(search);
-    setSelectedVibe(null);
     inputRef.current?.focus();
   }
 
   function clearSearch() {
     setQuery("");
-    setSelectedVibe(null);
     setResults([]);
     inputRef.current?.focus();
   }
 
   // Handlers for DreamCard - Dream V4 Integration
   const handleLike = useCallback((id: number, e: React.MouseEvent) => {
-    // Find the media object and show granular feedback modal
     const media = results.find(r => r.id === id);
     if (media) {
       setFeedbackModal({ media, type: 'like' });
     }
-    // Update UI immediately
     setLikedIds((prev) => new Set([...prev, id]));
     setDislikedIds((prev) => {
       const next = new Set(prev);
@@ -376,12 +394,10 @@ export default function SearchDream() {
   }, [results]);
 
   const handleFeedback = useCallback((id: number, reason: FeedbackReason) => {
-    // Find the media object and show granular feedback modal
     const media = results.find(r => r.id === id);
     if (media) {
       setFeedbackModal({ media, type: 'dislike' });
     }
-    // Update UI immediately
     setDislikedIds((prev) => new Set([...prev, id]));
     setLikedIds((prev) => {
       const next = new Set(prev);
@@ -399,7 +415,6 @@ export default function SearchDream() {
     const feedbackType = feedbackModal.type;
     const title = feedbackModal.media.title?.english || feedbackModal.media.title?.romaji;
 
-    // Save to feedback store
     await saveFeedback(mediaId, feedbackType, {
       title,
       reasons,
@@ -410,7 +425,6 @@ export default function SearchDream() {
       }
     });
 
-    // Process through Dream Engine if available
     const engine = getDreamEngine();
     if (engine) {
       const media = feedbackModal.media;
@@ -438,14 +452,12 @@ export default function SearchDream() {
       return;
     }
 
-    // Just save basic feedback without reasons
     await saveFeedback(
       feedbackModal.media.id,
       feedbackModal.type,
       { title: feedbackModal.media.title?.english || feedbackModal.media.title?.romaji }
     );
 
-    // Still process through Dream Engine with empty reasons
     const engine = getDreamEngine();
     if (engine) {
       const media = feedbackModal.media;
@@ -494,250 +506,253 @@ export default function SearchDream() {
     }
   }, []);
 
-  const hasActiveSearch = query.length > 0 || selectedVibe !== null;
+  const hasActiveSearch = query.length > 0;
+
+  // Build "Similar: Genre · Genre" label
+  const topGenres: string[] = results[0]?.genres ?? [];
+  const similarLabel = topGenres.length > 0
+    ? t("search.similarTo", { genres: topGenres.slice(0, 3).join(" · ") })
+    : "";
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#0f172a",
-        padding: "40px 20px 80px",
-      }}
-    >
-      {/* Search Header */}
-      <div style={{ maxWidth: "800px", margin: "0 auto 40px" }}>
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{
-            fontSize: "32px",
-            fontWeight: 800,
-            textAlign: "center",
-            marginBottom: "24px",
-            color: "white",
-          }}
-        >
-          {t("search.title")}
-        </motion.h1>
-
-        {/* Search Input */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          style={{
-            position: "relative",
-            maxWidth: "600px",
-            margin: "0 auto",
-          }}
-        >
-          <AiOutlineSearch
-            size={22}
+    <>
+      {/* Hide scrollbar in AnimeRow via a style tag */}
+      <style>{`.anime-row-scroll::-webkit-scrollbar { display: none; } .anime-row-scroll { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
+      <div
+        style={{
+          minHeight: "100vh",
+          padding: "40px 20px 80px",
+        }}
+      >
+        {/* Search Header */}
+        <div style={{ maxWidth: "800px", margin: "0 auto 40px" }}>
+          <motion.h1
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
             style={{
-              position: "absolute",
-              left: "20px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "rgba(255,255,255,0.4)",
-            }}
-          />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setSelectedVibe(null);
-            }}
-            placeholder={t("search.placeholder")}
-            style={{
-              width: "100%",
-              padding: "18px 50px 18px 54px",
-              fontSize: "17px",
-              borderRadius: "99px",
-              background: "rgba(30, 41, 59, 0.9)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              fontSize: "32px",
+              fontWeight: 800,
+              textAlign: "center",
+              marginBottom: "24px",
               color: "white",
-              outline: "none",
-              boxShadow: "0 12px 40px rgba(0,0,0,0.4)",
-              transition: "all 0.2s",
             }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.5)";
-              e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.4), 0 0 0 3px rgba(0, 212, 255, 0.15)";
+          >
+            {t("search.title")}
+          </motion.h1>
+
+          {/* Search Input */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            style={{
+              position: "relative",
+              maxWidth: "600px",
+              margin: "0 auto",
             }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
-              e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.4)";
-            }}
-          />
-          {(query || selectedVibe) && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              onClick={clearSearch}
+          >
+            <AiOutlineSearch
+              size={22}
               style={{
                 position: "absolute",
-                right: "16px",
+                left: "20px",
                 top: "50%",
                 transform: "translateY(-50%)",
-                background: "rgba(255,255,255,0.1)",
-                border: "none",
-                borderRadius: "50%",
-                width: "28px",
-                height: "28px",
+                color: "rgba(255,255,255,0.4)",
+              }}
+            />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("search.placeholder")}
+              style={{
+                width: "100%",
+                padding: "18px 50px 18px 54px",
+                fontSize: "17px",
+                borderRadius: "99px",
+                background: "rgba(30, 41, 59, 0.9)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "white",
+                outline: "none",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.4)",
+                transition: "all 0.2s",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "rgba(0, 212, 255, 0.5)";
+                e.currentTarget.style.boxShadow =
+                  "0 12px 40px rgba(0,0,0,0.4), 0 0 0 3px rgba(0, 212, 255, 0.15)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
+                e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.4)";
+              }}
+            />
+            {query && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                onClick={clearSearch}
+                style={{
+                  position: "absolute",
+                  right: "16px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "rgba(255,255,255,0.1)",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "28px",
+                  height: "28px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: "rgba(255,255,255,0.6)",
+                }}
+              >
+                <AiOutlineClose size={14} />
+              </motion.button>
+            )}
+          </motion.div>
+        </div>
+
+        {/* Content */}
+        <div style={{ maxWidth: "1600px", margin: "0 auto" }}>
+          {/* Empty State */}
+          {!hasActiveSearch && !isSearching && (
+            <EmptyState
+              recentSearches={recentSearches}
+              onRecentClick={handleRecentClick}
+              onTagClick={handleTagClick}
+              trendingItems={trendingItems}
+              onCardClick={handleOpenDetail}
+            />
+          )}
+
+          {/* Loading Spinner */}
+          {isSearching && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{
                 display: "flex",
-                alignItems: "center",
                 justifyContent: "center",
-                cursor: "pointer",
-                color: "rgba(255,255,255,0.6)",
+                padding: "60px 0",
               }}
             >
-              <AiOutlineClose size={14} />
-            </motion.button>
-          )}
-        </motion.div>
-      </div>
-
-      {/* Content */}
-      <div style={{ maxWidth: "1600px", margin: "0 auto" }}>
-        {/* Active Vibe Badge */}
-        <AnimatePresence>
-          {selectedVibe && (
-            <div style={{ textAlign: "center" }}>
-              <ActiveVibeBadge
-                vibe={selectedVibe}
-                onClear={() => setSelectedVibe(null)}
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  border: "3px solid rgba(0, 212, 255, 0.2)",
+                  borderTopColor: "#00d4ff",
+                  borderRadius: "50%",
+                }}
               />
-            </div>
+            </motion.div>
+          )}
+
+          {/* Results Grid */}
+          {hasActiveSearch && !isSearching && results.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <p style={{ opacity: 0.5, fontSize: "14px", marginBottom: "24px" }}>
+                {t("search.resultsFound", { count: results.length })}
+              </p>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                  gap: "24px",
+                  marginBottom: "48px",
+                }}
+              >
+                {results.map((media, index) => (
+                  <motion.div
+                    key={media.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.02 }}
+                  >
+                    <DreamCard
+                      media={media}
+                      matchScore={0}
+                      reasons={[]}
+                      onLike={handleLike}
+                      onFeedback={handleFeedback}
+                      onQuickAdd={handleQuickAdd}
+                      onSnooze={() => { }}
+                      onClick={handleOpenDetail}
+                      listStatus={media.mediaListEntry?.status}
+                      listProgress={media.mediaListEntry?.progress}
+                      listScore={media.mediaListEntry?.score}
+                      listEntryId={media.mediaListEntry?.id}
+                      liked={likedIds.has(media.id)}
+                      disliked={dislikedIds.has(media.id)}
+                      onRemoveFromList={handleRemoveFromList}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Similar Row */}
+              {similarItems.length > 0 && (
+                <AnimeRow
+                  title={similarLabel}
+                  items={similarItems}
+                  onCardClick={handleOpenDetail}
+                />
+              )}
+            </motion.div>
+          )}
+
+          {/* No Results */}
+          {hasActiveSearch && !isSearching && results.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{
+                textAlign: "center",
+                padding: "80px 20px",
+              }}
+            >
+              <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔍</div>
+              <h3 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>
+                {t("search.noResults")}
+              </h3>
+              <p style={{ opacity: 0.5, fontSize: "14px" }}>
+                {t("search.tryOtherTerm")}
+              </p>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Detail View Modal */}
+        <AnimatePresence>
+          {selectedMedia && (
+            <MediaDetailView_dream
+              media={selectedMedia}
+              title={selectedMedia.title?.english || selectedMedia.title?.romaji || "Unknown"}
+              scoreFormat={viewer?.mediaListOptions?.scoreFormat}
+              onClose={() => setSelectedMedia(null)}
+              onSaved={() => setSelectedMedia(null)}
+            />
           )}
         </AnimatePresence>
 
-        {/* Empty State (no search, no vibe) */}
-        {!hasActiveSearch && !isSearching && (
-          <EmptyState
-            recentSearches={recentSearches}
-            onRecentClick={handleRecentClick}
-            onVibeSelect={handleVibeSelect}
-            onTagClick={handleTagClick}
-          />
-        )}
-
-        {/* Loading State */}
-        {isSearching && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              padding: "60px 0",
-            }}
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              style={{
-                width: "36px",
-                height: "36px",
-                border: "3px solid rgba(0, 212, 255, 0.2)",
-                borderTopColor: "#00d4ff",
-                borderRadius: "50%",
-              }}
+        {/* Dream V4 Feedback Modal */}
+        <AnimatePresence>
+          {feedbackModal?.media && (
+            <FeedbackModalV4
+              media={feedbackModal.media}
+              feedbackType={feedbackModal.type}
+              onSubmit={handleFeedbackSubmit}
+              onSkip={handleFeedbackSkip}
             />
-          </motion.div>
-        )}
-
-        {/* Results Grid */}
-        {hasActiveSearch && !isSearching && results.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <p style={{ opacity: 0.5, fontSize: "14px", marginBottom: "24px" }}>
-              {t("search.resultsFound", { count: results.length })}
-            </p>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                gap: "24px",
-              }}
-            >
-              {results.map((media, index) => (
-                <motion.div
-                  key={media.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.02 }}
-                >
-                  <DreamCard
-                    media={media}
-                    matchScore={0}
-                    reasons={[]}
-                    onLike={handleLike}
-                    onFeedback={handleFeedback}
-                    onQuickAdd={handleQuickAdd}
-                    onSnooze={() => { }}
-                    onClick={handleOpenDetail}
-                    listStatus={media.mediaListEntry?.status}
-                    listProgress={media.mediaListEntry?.progress}
-                    listScore={media.mediaListEntry?.score}
-                    listEntryId={media.mediaListEntry?.id}
-                    liked={likedIds.has(media.id)}
-                    disliked={dislikedIds.has(media.id)}
-                    onRemoveFromList={handleRemoveFromList}
-                  />
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* No Results */}
-        {hasActiveSearch && !isSearching && results.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{
-              textAlign: "center",
-              padding: "80px 20px",
-            }}
-          >
-            <div style={{ fontSize: "64px", marginBottom: "16px" }}>🔍</div>
-            <h3 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>
-              {t("search.noResults")}
-            </h3>
-            <p style={{ opacity: 0.5, fontSize: "14px" }}>
-              {t("search.tryOtherTerm")}
-            </p>
-          </motion.div>
-        )}
+          )}
+        </AnimatePresence>
       </div>
-
-      {/* Detail View Modal */}
-      <AnimatePresence>
-        {selectedMedia && (
-          <MediaDetailView_dream
-            media={selectedMedia}
-            title={selectedMedia.title?.english || selectedMedia.title?.romaji || "Unknown"}
-            scoreFormat={viewer?.mediaListOptions?.scoreFormat}
-            onClose={() => setSelectedMedia(null)}
-            onSaved={() => setSelectedMedia(null)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Dream V4 Feedback Modal */}
-      <AnimatePresence>
-        {feedbackModal?.media && (
-          <FeedbackModalV4
-            media={feedbackModal.media}
-            feedbackType={feedbackModal.type}
-            onSubmit={handleFeedbackSubmit}
-            onSkip={handleFeedbackSkip}
-          />
-        )}
-      </AnimatePresence>
-    </div>
+    </>
   );
 }

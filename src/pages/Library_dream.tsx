@@ -649,7 +649,7 @@ export default function Library_dream() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0f172a", color: "white", padding: "40px 24px 80px" }}>
+    <div style={{ minHeight: "100vh", color: "white", padding: "40px 24px 80px" }}>
       <div style={{ maxWidth: "1600px", margin: "0 auto" }}>
         {/* Offline Mode Banner */}
         {isOfflineMode && (
@@ -902,17 +902,17 @@ export default function Library_dream() {
 
         {/* Results Count */}
         <p style={{ opacity: 0.5, fontSize: 14, marginBottom: 24 }}>
-          {filteredEntries.length} Ergebnisse
-          {searchQuery && ` für "${searchQuery}"`}
+          {t("library.resultsCount", { count: filteredEntries.length })}
+          {searchQuery && ` ${t("library.forQuery", { query: searchQuery })}`}
         </p>
 
         {/* Content */}
         {filteredEntries.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 20px" }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>📭</div>
-            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Keine Einträge gefunden</h3>
+            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{t("library.noEntries")}</h3>
             <p style={{ opacity: 0.5 }}>
-              {searchQuery ? "Versuche einen anderen Suchbegriff" : "Füge Anime zu deiner Liste hinzu"}
+              {searchQuery ? t("search.tryOtherTerm") : t("library.addAnime")}
             </p>
           </div>
         ) : viewMode === "grid" ? (

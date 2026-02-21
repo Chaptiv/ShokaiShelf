@@ -12,6 +12,7 @@ import FeedbackModalV4, { ProfileInsightsPanel } from "../components/FeedbackMod
 import { type FeedbackReason } from "../components/FeedbackPopover";
 import { TvIcon, TargetIcon, BoltIcon, BrainIcon, ClockIcon, BookIcon } from "../components/icons/StatusIcons";
 import { devLog, devWarn, logError } from "@utils/logger";
+import appIcon from '/build/icons/icon.png';
 
 // Particle animation for likes
 function createParticleAnimation(emoji: string, x: number, y: number) {
@@ -316,7 +317,7 @@ function LoadingScreen() {
         }}
       >
         <img
-          src="/build/icons/icon.png"
+          src={appIcon}
           alt="ShokaiShelf"
           style={{
             width: 120,
@@ -736,7 +737,6 @@ export default function DashboardDream({
     <div
       style={{
         minHeight: "100vh",
-        background: "#0f172a",
         color: "white",
         paddingBottom: "80px",
       }}
