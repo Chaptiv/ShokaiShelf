@@ -6,6 +6,7 @@ node_modules/
 
 # Build output
 dist/
+artifacts/
 
 # Logs
 npm-debug.log*
@@ -22,3 +23,7 @@ Dokumentation/
 .claude/
 tmp/
 .venv/
+
+# Internal Documentation
+*.md
+!README.md

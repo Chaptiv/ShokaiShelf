@@ -436,8 +436,10 @@ export function generateDreamReasons(
   const reasons: string[] = [];
   const metrics = profile.metrics;
   const media = candidate.media;
+  const episodes = media.episodes || 12;
+  const year = media.startDate?.year || new Date().getFullYear();
 
-  // Cluster matching reason
+  // Cluster matching — the most "Dream" reason
   const mediaTags = [
     ...(media.tags || []).map(t => t.name),
     ...(media.genres || [])
@@ -446,50 +448,66 @@ export function generateDreamReasons(
 
   if (matchingClusters.length > 0) {
     const topCluster = matchingClusters.sort((a, b) => b.userAffinity - a.userAffinity)[0];
-    if (topCluster.userAffinity > 0.5) {
-      reasons.push(`Matches your "${topCluster.name}" preferences`);
+    if (topCluster.userAffinity > 0.7) {
+      reasons.push(`Strong match for your "${topCluster.name}" taste — one of your top preferences`);
+    } else if (topCluster.userAffinity > 0.5) {
+      reasons.push(`Fits your "${topCluster.name}" preferences well`);
+    } else if (topCluster.userAffinity > 0.3) {
+      reasons.push(`Touches on your "${topCluster.name}" interests`);
     }
   }
 
-  // Binge velocity reason
-  const episodes = media.episodes || 12;
-  if (metrics.bingeVelocity > 2.5 && episodes <= 13) {
-    reasons.push('Perfect binge length for your viewing speed');
+  // Binge velocity — personalized pacing insight
+  if (metrics.bingeVelocity > 3.5 && episodes <= 13) {
+    reasons.push(`At your binge speed, you could finish all ${episodes} episodes in one sitting`);
+  } else if (metrics.bingeVelocity > 2.5 && episodes <= 13) {
+    reasons.push(`A quick ${episodes}-episode watch that fits your pace perfectly`);
   } else if (metrics.bingeVelocity > 4 && episodes >= 24) {
-    reasons.push('Great for a power-watching session');
+    reasons.push(`${episodes} episodes — a satisfying longer watch for your marathon style`);
   }
 
-  // Completionist reason
+  // Completionist insight
   if (metrics.completionistScore > 0.8 && episodes <= 24) {
-    reasons.push('You typically finish similar shows');
+    const pct = Math.round(metrics.completionistScore * 100);
+    reasons.push(`You finish ${pct}% of shows you start — this one's a good commitment`);
+  } else if (metrics.completionistScore < 0.4 && episodes <= 12) {
+    reasons.push(`Short and low-commitment — no pressure if you want to try it`);
   }
 
-  // Studio whitelist reason
+  // Studio whitelist — personal connection
   const studioNames = (media.studios?.nodes || []).map(s => s.name);
   const whitelistedStudio = profile.rules.whitelistedStudios.find(s => studioNames.includes(s));
   if (whitelistedStudio) {
-    reasons.push(`From ${whitelistedStudio}, a studio you enjoy`);
+    reasons.push(`Made by ${whitelistedStudio} — a studio you consistently enjoy`);
   }
 
-  // Genre whitelist reason
-  const whitelistedGenre = profile.rules.whitelistedGenres.find(g => media.genres?.includes(g));
-  if (whitelistedGenre) {
-    reasons.push(`Features ${whitelistedGenre}, one of your favorites`);
+  // Genre whitelist — personal favorites
+  const matchedFavGenres = profile.rules.whitelistedGenres.filter(g => media.genres?.includes(g));
+  if (matchedFavGenres.length >= 2) {
+    reasons.push(`Combines ${matchedFavGenres[0]} and ${matchedFavGenres[1]} — two of your favorites`);
+  } else if (matchedFavGenres.length === 1) {
+    reasons.push(`Features ${matchedFavGenres[0]}, one of your go-to genres`);
   }
 
-  // High confidence reason
-  if (breakdown.confidence > 80) {
-    reasons.push('High confidence match for your taste');
+  // High confidence — engine is very sure
+  if (breakdown.confidence > 85) {
+    reasons.push('The engine is very confident you\'ll enjoy this one');
+  } else if (breakdown.confidence > 75) {
+    reasons.push('Strong confidence match based on your watch patterns');
   }
 
-  // Tolerance-based reasons
-  const year = media.startDate?.year || new Date().getFullYear();
+  // Tolerance insights — unique to Dream
   if (year < 2010 && metrics.toleranceForOld > 0.7) {
-    reasons.push('A classic that suits your appreciation for older anime');
+    reasons.push(`A ${year} classic — and you appreciate older anime more than most`);
   }
 
   if (episodes >= 50 && metrics.toleranceForLong > 0.7) {
-    reasons.push('An epic series for your marathon-watching style');
+    reasons.push(`${episodes} episodes — a long-form story for your marathon appetite`);
+  }
+
+  // Drop pattern insight
+  if (metrics.vibeCheckDrops > 10 && episodes <= 12) {
+    reasons.push('Short enough to vibe-check without a big commitment');
   }
 
   return reasons;

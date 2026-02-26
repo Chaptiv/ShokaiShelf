@@ -29,20 +29,26 @@ export function generateReasons(
   const reasons: Array<{ text: string; score: number }> = [];
   const features = candidate.features;
   const media = candidate.media;
+  const episodes = media.episodes || 0;
+  const year = media.startDate?.year || 0;
+  const avgScore = media.averageScore || 0;
 
-  // NEW 1: Current-Similar (highest priority!)
+  // --- 1. Currently watching similar (highest priority) ---
   if (candidate.sources.includes("current-similar") && candidate.seedIds && candidate.seedIds.length > 0) {
-    const seed = userEntries.find((e) => e.media.id === candidate.seedIds[0]);
+    const seed = userEntries.find((e) => e.media.id === candidate.seedIds![0]);
     if (seed) {
       const seedTitle = getTitle(seed.media);
+      const sharedGenres = findSharedGenres(media, seed.media);
       reasons.push({
-        text: t("explain.currentSimilar", { title: seedTitle }),
+        text: sharedGenres.length > 0
+          ? t("explain.currentSimilarGenre", { title: seedTitle, genre: sharedGenres[0] })
+          : t("explain.currentSimilar", { title: seedTitle }),
         score: 3.0,
       });
     }
   }
 
-  // 1. Multi-Seed CF (more dynamic than single seed)
+  // --- 2. Collaborative filtering (users with similar taste) ---
   if (candidate.sources.includes("cf") && candidate.seedIds && candidate.seedIds.length > 0) {
     const seeds = candidate.seedIds
       .slice(0, 3)
@@ -51,39 +57,46 @@ export function generateReasons(
 
     if (seeds.length >= 2) {
       const titles = seeds.map((s) => getTitle(s.media));
+      const avgSeedScore = Math.round(seeds.reduce((sum, s) => sum + (s.score || 0), 0) / seeds.length);
       reasons.push({
-        text: t("explain.similarTo", { titles: titles.slice(0, 2).join(` ${t("common.and")} `) }),
+        text: avgSeedScore >= 8
+          ? t("explain.cfMultiLoved", { title1: titles[0], title2: titles[1] })
+          : t("explain.cfMulti", { title1: titles[0], title2: titles[1] }),
         score: features.cfScore * 2.5,
       });
     } else if (seeds.length === 1) {
       const seedTitle = getTitle(seeds[0].media);
       const seedScore = seeds[0].score || 0;
+      const sharedGenres = findSharedGenres(media, seeds[0].media);
       reasons.push({
         text: seedScore >= 8
-          ? t("explain.recommendedForFansLoved", { title: seedTitle })
-          : t("explain.recommendedForFans", { title: seedTitle }),
+          ? t("explain.cfSingleLoved", { title: seedTitle, genre: sharedGenres[0] || '' })
+          : t("explain.cfSingle", { title: seedTitle }),
         score: features.cfScore * 2,
       });
     }
   }
 
-  // 2. Phase 2: Feedback-based
+  // --- 3. Feedback - similar to liked anime ---
   if (features.positiveSimilarity > 0.5) {
+    const topGenre = media.genres?.[0];
     reasons.push({
-      text: t("explain.similarToLiked"),
+      text: topGenre
+        ? t("explain.likedSimilarGenre", { genre: topGenre })
+        : t("explain.likedSimilar"),
       score: features.positiveSimilarity * 2.2,
     });
   }
 
-  // 3. Phase 2: Differs from dislikes
-  if (features.negativeSimilarity < 0.3 && features.isDisliked === false) {
+  // --- 4. Feedback - avoids disliked patterns ---
+  if (features.negativeSimilarity < 0.3 && features.isDisliked === false && features.positiveSimilarity > 0.3) {
     reasons.push({
-      text: t("explain.basedOnFeedback"),
+      text: t("explain.feedbackAligned"),
       score: 1.8,
     });
   }
 
-  // 4. Relation (more detailed)
+  // --- 5. Direct relation to watched anime ---
   if (features.relationType) {
     const relatedEntry = findRelated(media, userEntries);
     if (relatedEntry) {
@@ -98,137 +111,169 @@ export function generateReasons(
     }
   }
 
-  // 5. Genre overlap with user stats
+  // --- 6. Genre overlap with user statistics ---
   if (features.genreOverlap > 0.3 && media.genres && media.genres.length > 0) {
     const primaryGenre = media.genres[0];
     const genreStats = calculateGenreStats(primaryGenre, userEntries);
 
-    if (genreStats.count >= 3) {
+    if (genreStats.count >= 5) {
       const percentage = Math.round((genreStats.highScored / genreStats.count) * 100);
       reasons.push({
-        text: t("explain.genreHighScored", { genre: primaryGenre, percentage }),
+        text: t("explain.genreTrackRecord", { genre: primaryGenre, count: genreStats.count, percentage }),
         score: features.genreOverlap * 1.8,
       });
-    } else {
+    } else if (genreStats.count >= 2) {
       reasons.push({
-        text: t("explain.matchingGenres", { genres: media.genres.slice(0, 2).join(", ") }),
+        text: t("explain.genreEnjoy", { genre: primaryGenre, count: genreStats.count }),
         score: features.genreOverlap * 1.5,
+      });
+    } else if (media.genres.length >= 2) {
+      reasons.push({
+        text: t("explain.genreCombo", { genre1: media.genres[0], genre2: media.genres[1] }),
+        score: features.genreOverlap * 1.3,
       });
     }
   }
 
-  // 6. Studio match with average score
+  // --- 7. Studio match with track record ---
   if (features.studioMatch && media.studios?.nodes) {
     const studio = media.studios.nodes[0]?.name;
     if (studio) {
-      const studioAvg = calculateStudioAverage(studio, userEntries);
-      if (studioAvg > 0) {
+      const studioEntries = userEntries.filter(
+        (e) => e.media.studios?.nodes?.some((s) => s.name === studio) && e.status === "COMPLETED" && e.score
+      );
+      const studioAvg = studioEntries.length > 0
+        ? studioEntries.reduce((sum, e) => sum + (e.score || 0), 0) / studioEntries.length
+        : 0;
+
+      if (studioEntries.length >= 3 && studioAvg >= 7) {
         reasons.push({
-          text: t("explain.studioAvg", { studio, avg: studioAvg.toFixed(1) }),
-          score: 1.5,
+          text: t("explain.studioTrackRecord", { studio, count: studioEntries.length, avg: studioAvg.toFixed(1) }),
+          score: 1.6,
+        });
+      } else if (studioAvg > 0) {
+        reasons.push({
+          text: t("explain.studioFamiliar", { studio, avg: studioAvg.toFixed(1) }),
+          score: 1.3,
         });
       } else {
         reasons.push({
           text: t("explain.studioKnown", { studio }),
-          score: 1.2,
+          score: 1.0,
         });
       }
     }
   }
 
-  // 7. Tag overlap with examples
+  // --- 8. Tag/theme overlap with concrete examples ---
   if (features.tagOverlap > 0.4 && media.tags) {
     const topTags = media.tags
       .filter((t) => !t.isMediaSpoiler && !t.isGeneralSpoiler && (t.rank || 0) >= 60)
-      .slice(0, 2);
+      .slice(0, 3);
 
     if (topTags.length > 0) {
       const tagName = topTags[0].name;
       const exampleAnime = findAnimeWithTag(tagName, userEntries);
 
       if (exampleAnime) {
+        const exampleScore = exampleAnime.score || 0;
         reasons.push({
-          text: t("explain.tagSimilar", { tag: tagName, title: getTitle(exampleAnime.media) }),
+          text: exampleScore >= 8
+            ? t("explain.themeLovedExample", { theme: tagName, title: getTitle(exampleAnime.media) })
+            : t("explain.themeExample", { theme: tagName, title: getTitle(exampleAnime.media) }),
           score: features.tagOverlap * 1.6,
+        });
+      } else if (topTags.length >= 2) {
+        reasons.push({
+          text: t("explain.themesMix", { theme1: topTags[0].name, theme2: topTags[1].name }),
+          score: features.tagOverlap * 1.3,
         });
       } else {
         reasons.push({
-          text: t("explain.similarThemes", { themes: topTags.map((tg) => tg.name).join(", ") }),
-          score: features.tagOverlap * 1.3,
+          text: t("explain.themeStrong", { theme: tagName }),
+          score: features.tagOverlap * 1.1,
         });
       }
     }
   }
 
-  // 8. Fresh/Seasonal (more context)
+  // --- 9. Fresh/seasonal with appeal ---
   if (features.isFresh) {
-    const year = media.startDate?.year;
     const season = getCurrentSeason();
-    const isCurrentSeason = media.season && media.seasonYear === new Date().getFullYear();
+    const isCurrentSeason = (media as any).season && (media as any).seasonYear === new Date().getFullYear();
 
-    if (isCurrentSeason) {
+    if (isCurrentSeason && avgScore >= 80) {
       reasons.push({
-        text: t("explain.currentSeason", { season, year }),
+        text: t("explain.seasonalHit", { season, score: avgScore }),
+        score: 1.5,
+      });
+    } else if (isCurrentSeason) {
+      reasons.push({
+        text: t("explain.seasonalNew", { season }),
         score: 1.3,
       });
-    } else {
+    } else if (year) {
       reasons.push({
-        text: year ? t("explain.newReleaseYear", { year }) : t("explain.newRelease"),
+        text: t("explain.recentRelease", { year }),
         score: 1.0,
       });
     }
   }
 
-  // 9. High score with context
-  if (media.averageScore && media.averageScore >= 80) {
-    const percentile = calculatePercentile(media.averageScore);
-    reasons.push({
-      text: t("explain.higherRated", { percentile }),
-      score: 1.1,
-    });
+  // --- 10. Community rating with context ---
+  if (avgScore >= 80) {
+    const percentile = calculatePercentile(avgScore);
+    if (avgScore >= 85) {
+      reasons.push({
+        text: t("explain.communityElite", { score: avgScore, percentile }),
+        score: 1.2,
+      });
+    } else {
+      reasons.push({
+        text: t("explain.communityWellLoved", { score: avgScore }),
+        score: 1.0,
+      });
+    }
   }
 
-  // 10. Popularity with context
-  if (media.popularity && media.popularity >= 50000) {
-    const rank = estimatePopularityRank(media.popularity);
-    reasons.push({
-      text: t("explain.topPopular", { rank }),
-      score: 0.9,
-    });
+  // --- 11. Episode count / watchability ---
+  if (features.bingeScore >= 0.8 && episodes > 0) {
+    const avgUserEpisodes = calculateAverageCompleted(userEntries);
+
+    if (episodes <= 13 && avgUserEpisodes <= 16) {
+      reasons.push({
+        text: t("explain.quickWatch", { episodes }),
+        score: 0.9,
+      });
+    } else if (episodes >= 24 && avgUserEpisodes >= 20) {
+      reasons.push({
+        text: t("explain.longInvest", { episodes }),
+        score: 0.8,
+      });
+    } else {
+      reasons.push({
+        text: t("explain.fitsLength", { episodes }),
+        score: 0.7,
+      });
+    }
   }
 
-  // 11. Bingeability with user context
-  if (features.bingeScore >= 0.8 && media.episodes) {
-    const avgEpisodes = calculateAverageCompleted(userEntries);
-    const comparisonKey =
-      media.episodes > avgEpisodes * 1.5
-        ? "explain.bingeLonger"
-        : media.episodes < avgEpisodes * 0.5
-          ? "explain.bingeShort"
-          : "explain.bingePerfect";
-
-    reasons.push({
-      text: t(comparisonKey, { episodes: media.episodes }),
-      score: 0.8,
-    });
-  }
-
-  // 12. Format match with completion rate
+  // --- 12. Format match ---
   if (features.formatMatch && media.format) {
     const completionRate = calculateFormatCompletionRate(media.format, userEntries);
     if (completionRate > 0.7) {
       const percentage = Math.round(completionRate * 100);
       reasons.push({
-        text: t("explain.formatCompletion", { format: t(`explain.formats.${media.format}`), percentage }),
+        text: t("explain.formatSuccess", { format: t(`explain.formats.${media.format}`), percentage }),
         score: 0.9,
       });
     }
   }
 
-  // 13. Phase 2: Click/View History
+  // --- 13. Previously shown interest ---
   if (features.wasViewed) {
     reasons.push({
-      text: t("explain.previousInterest"),
+      text: t("explain.caughtEyeBefore"),
       score: 1.4,
     });
   }
@@ -278,6 +323,14 @@ export function generateDetailedExplanation(
 
 function getTitle(media: Media): string {
   return media.title?.english || media.title?.romaji || media.title?.native || "Unknown";
+}
+
+/**
+ * Find shared genres between two media
+ */
+function findSharedGenres(a: Media, b: Media): string[] {
+  if (!a.genres || !b.genres) return [];
+  return a.genres.filter((g) => b.genres!.includes(g));
 }
 
 /**

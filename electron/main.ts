@@ -40,6 +40,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 
 function createWindow() {
+  app.setAppUserModelId('ShokaiShelf')
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
     webPreferences: {
@@ -91,7 +92,7 @@ function setupNotifications() {
   })
 
   // Initialisiere Engine
-  notificationEngine = new NotificationEngine(notificationStore, store, config)
+  notificationEngine = new NotificationEngine(store)
 
   // Starte Engine wenn enabled
   if (config.enabled) {
@@ -107,7 +108,7 @@ function setupNotifications() {
 // Get notification config
 ipcMain.handle('notifications:getConfig', async () => {
   if (!notificationEngine) return null
-  return notificationEngine.getStatus()
+  return notificationEngine.getConfig()
 })
 
 // Update notification config
@@ -116,7 +117,7 @@ ipcMain.handle('notifications:updateConfig', async (_event, config) => {
 
   try {
     notificationEngine.updateConfig(config)
-    store.set('notifications.config', { ...notificationEngine.getStatus().config })
+    store.set('notifications.config', { ...notificationEngine.getConfig().config })
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -137,7 +138,7 @@ ipcMain.handle('notifications:checkNow', async () => {
       return { success: false, error: 'Not authenticated' }
     }
 
-    await notificationEngine.check(token, String(userId))
+    await notificationEngine.checkNow()
     return { success: true, message: 'Check completed' }
   } catch (err: any) {
     return { success: false, error: err.message }

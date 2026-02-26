@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 export type FeedbackReason =
   | "too_long"
@@ -14,17 +15,27 @@ interface FeedbackPopoverProps {
   onClose: () => void;
 }
 
-const OPTIONS: { id: FeedbackReason; label: string; icon: string; description?: string }[] = [
-  { id: "too_long", label: "Zu lang", icon: "⏳", description: "Weniger Episoden bitte" },
-  { id: "artstyle", label: "Artstyle", icon: "🎨", description: "Nicht mein visueller Stil" },
-  { id: "boring", label: "Langweilig", icon: "💤", description: "Klingt nicht interessant" },
-  { id: "mood_wrong", label: "Falscher Vibe", icon: "🎭", description: "Passt nicht zur Stimmung" },
-  { id: "already_seen", label: "Schon gesehen", icon: "👀", description: "Kenne ich bereits" },
-  { id: "not_now", label: "Nicht jetzt", icon: "🚫", description: "Später nochmal zeigen" },
-];
+const ICONS: Record<FeedbackReason, string> = {
+  too_long: "⏳",
+  artstyle: "🎨",
+  boring: "💤",
+  mood_wrong: "🎭",
+  already_seen: "👀",
+  not_now: "🚫",
+};
 
 export function FeedbackPopover({ onSelect, onClose }: FeedbackPopoverProps) {
+  const { t } = useTranslation();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  const OPTIONS: { id: FeedbackReason; label: string; icon: string; description: string }[] = [
+    { id: "too_long", label: t("feedbackV4.popover.reasons.too_long.label"), icon: ICONS.too_long, description: t("feedbackV4.popover.reasons.too_long.description") },
+    { id: "artstyle", label: t("feedbackV4.popover.reasons.artstyle.label"), icon: ICONS.artstyle, description: t("feedbackV4.popover.reasons.artstyle.description") },
+    { id: "boring", label: t("feedbackV4.popover.reasons.boring.label"), icon: ICONS.boring, description: t("feedbackV4.popover.reasons.boring.description") },
+    { id: "mood_wrong", label: t("feedbackV4.popover.reasons.mood_wrong.label"), icon: ICONS.mood_wrong, description: t("feedbackV4.popover.reasons.mood_wrong.description") },
+    { id: "already_seen", label: t("feedbackV4.popover.reasons.already_seen.label"), icon: ICONS.already_seen, description: t("feedbackV4.popover.reasons.already_seen.description") },
+    { id: "not_now", label: t("feedbackV4.popover.reasons.not_now.label"), icon: ICONS.not_now, description: t("feedbackV4.popover.reasons.not_now.description") },
+  ];
 
   return (
     <motion.div
@@ -59,7 +70,7 @@ export function FeedbackPopover({ onSelect, onClose }: FeedbackPopoverProps) {
         letterSpacing: "0.5px",
         color: "#94a3b8"
       }}>
-        Warum nicht?
+        {t("feedbackV4.popover.whyNot")}
       </div>
       {OPTIONS.map((opt, index) => (
         <motion.button

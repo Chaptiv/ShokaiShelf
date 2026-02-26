@@ -1,7 +1,8 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { MdErrorOutline, MdRefresh, MdContentCopy } from "react-icons/md";
+import { withTranslation, WithTranslation } from "react-i18next";
 
-interface Props {
+interface Props extends WithTranslation {
     children: ReactNode;
 }
 
@@ -11,7 +12,7 @@ interface State {
     errorInfo: ErrorInfo | null;
 }
 
-export default class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundary extends Component<Props, State> {
     constructor(props: Props) {
         super(props);
         this.state = { hasError: false, error: null, errorInfo: null };
@@ -33,10 +34,12 @@ export default class ErrorBoundary extends Component<Props, State> {
     handleCopy = () => {
         const text = `Error: ${this.state.error?.toString()}\n\nStack:\n${this.state.errorInfo?.componentStack}`;
         navigator.clipboard.writeText(text);
-        alert("Fehlerdetails kopiert!");
+        alert(this.props.t("common.errorBoundary.copied", { defaultValue: "Fehlerdetails kopiert!" }));
     };
 
     render() {
+        const { t } = this.props;
+
         if (this.state.hasError) {
             return (
                 <div style={{
@@ -52,9 +55,11 @@ export default class ErrorBoundary extends Component<Props, State> {
                     textAlign: "center"
                 }}>
                     <MdErrorOutline size={64} color="#ef4444" style={{ marginBottom: 24 }} />
-                    <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Ups, etwas ist schiefgelaufen.</h1>
+                    <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>
+                        {t("common.errorBoundary.title", { defaultValue: "Ups, etwas ist schiefgelaufen." })}
+                    </h1>
                     <p style={{ opacity: 0.7, marginBottom: 32, maxWidth: 400 }}>
-                        ShokaiShelf ist abgestürzt. Das tut uns leid. Bitte lade die App neu oder kopiere den Fehlerbericht.
+                        {t("common.errorBoundary.message", { defaultValue: "ShokaiShelf ist abgestürzt. Das tut uns leid. Bitte lade die App neu oder kopiere den Fehlerbericht." })}
                     </p>
 
                     <div style={{ display: "flex", gap: 16 }}>
@@ -74,7 +79,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                             }}
                         >
                             <MdRefresh size={20} />
-                            Neu laden
+                            {t("common.errorBoundary.reload", { defaultValue: "Neu laden" })}
                         </button>
 
                         <button
@@ -93,7 +98,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                             }}
                         >
                             <MdContentCopy size={20} />
-                            Details kopieren
+                            {t("common.errorBoundary.copyLog", { defaultValue: "Details kopieren" })}
                         </button>
                     </div>
 
@@ -122,3 +127,5 @@ export default class ErrorBoundary extends Component<Props, State> {
         return this.props.children;
     }
 }
+
+export default withTranslation()(ErrorBoundary);

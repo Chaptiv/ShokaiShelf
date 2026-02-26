@@ -7,6 +7,7 @@
 // - subscribeAuth löst lokale Cache-Invalidierung aus
 
 import { devLog, devWarn, logError } from "@utils/logger";
+import { rateLimiter } from "../logic/netrecV3/cache";
 
 /* ───────────────── Types ───────────────── */
 
@@ -94,73 +95,38 @@ declare global {
           }>;
           error?: string;
         }>;
+        test: () => Promise<any>;
+      };
+      status?: () => Promise<any>;
+      discord?: {
+        getStatus: () => Promise<any>;
+        setEnabled: (enabled: boolean) => Promise<any>;
+        setActivity: (activity: any) => Promise<any>;
+        clearActivity: () => Promise<any>;
+      };
+      scrobbler?: {
+        getStatus: () => Promise<any>;
+        updateConfig: (config: any) => Promise<any>;
+        debugMatch: () => Promise<any>;
+        removeAlias: (alias: string) => Promise<any>;
+      };
+      app?: {
+        notify: (options: { title: string; body: string }) => void;
       };
     };
   }
 }
 
 /* ───────────────── Rate Limiter ───────────────── */
-
-const RATE_LIMIT_MAX = 85; // AniList erlaubt 90/min, wir bleiben sicher drunter
-const RATE_LIMIT_WINDOW = 60_000; // 1 Minute
-
-let rlState = {
-  count: 0,
-  resetAt: Date.now() + RATE_LIMIT_WINDOW,
-  backoffUntil: 0,
-};
-
-async function waitForRateLimit(): Promise<void> {
-  const now = Date.now();
-
-  // Backoff aktiv (nach 429)?
-  if (rlState.backoffUntil > now) {
-    const wait = rlState.backoffUntil - now;
-    devWarn(`[AniList] Rate-limit backoff, warte ${wait}ms`);
-
-    // User benachrichtigen
-    notifyRateLimit(wait);
-
-    await new Promise(r => setTimeout(r, wait));
-    return waitForRateLimit();
-  }
-
-  // Fenster zurücksetzen
-  if (now >= rlState.resetAt) {
-    rlState.count = 0;
-    rlState.resetAt = now + RATE_LIMIT_WINDOW;
-  }
-
-  // Limit erreicht?
-  if (rlState.count >= RATE_LIMIT_MAX) {
-    const wait = rlState.resetAt - now;
-    devWarn(`[AniList] Rate-limit erreicht (${rlState.count}/${RATE_LIMIT_MAX}), warte ${wait}ms`);
-
-    // User benachrichtigen
-    notifyRateLimit(wait);
-
-    await new Promise(r => setTimeout(r, wait));
-    return waitForRateLimit();
-  }
-
-  rlState.count++;
-}
-
-function handleRateLimit429(retryAfterSec?: number): void {
-  const backoff = retryAfterSec ? retryAfterSec * 1000 : 60_000;
-  rlState.backoffUntil = Date.now() + backoff;
-  logError(`[AniList] 429 erkannt, Backoff ${backoff}ms`);
-
-  // User benachrichtigen
-  notifyRateLimit(backoff);
-}
+// We now use the centralized rateLimiter from cache.ts to prevent duplicate queue conflicts
 
 /* ───────────────── User Notification ───────────────── */
 
 let lastNotificationTime = 0;
 const NOTIFICATION_THROTTLE = 10_000; // Max 1 Notification alle 10 Sekunden
 
-function notifyRateLimit(waitMs: number): void {
+// This is still useful as a global hook to warn the user visually
+export function notifyRateLimit(waitMs: number): void {
   const now = Date.now();
 
   // Throttle Notifications (nicht spammen)
@@ -264,16 +230,16 @@ export function subscribeAuth(cb: () => void) {
     trendingCache = { at: 0, data: [] };
     searchCache.clear();
 
-    try { cb(); } catch {}
+    try { cb(); } catch { }
   });
-  return () => { try { off && off(); } catch {} };
+  return () => { try { off && off(); } catch { } };
 }
 
 /* ───────────────── GQL-Helper ───────────────── */
 
 async function gql<T = any>(query: string, variables?: Record<string, any>, requireAuth = false): Promise<T> {
-  // Rate Limiter: Warten bevor Request abgeschickt wird
-  await waitForRateLimit();
+  // Rate Limiter: Warten bevor Request abgeschickt wird (using unified rateLimiter from cache.ts)
+  await rateLimiter.checkLimit();
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
 
@@ -295,9 +261,15 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
     // 429 -> Rate Limit! Backoff + Retry
     if (res.status === 429) {
       const retryAfter = res.headers.get("Retry-After");
-      handleRateLimit429(retryAfter ? parseInt(retryAfter) : undefined);
+      const retrySec = retryAfter ? parseInt(retryAfter) : undefined;
+      rateLimiter.handle429(retrySec);
+
+      // Also notify the user visually using the old hook
+      if (retrySec) notifyRateLimit(retrySec * 1000);
+      else notifyRateLimit(60000);
+
       // Einmal retry nach Backoff
-      await waitForRateLimit();
+      await rateLimiter.checkLimit();
       return gql<T>(query, variables, requireAuth);
     }
     // 401/403 -> lokalen Token-Cache invalidieren, damit UI korrekt reagiert
@@ -793,7 +765,7 @@ export async function fetchGlobalActivities(page: number = 1): Promise<any[]> {
         activities(sort: ID_DESC, type: TEXT) {
           ... on TextActivity {
             id
-            type
+            type:__typename
             text
             createdAt
             isLiked

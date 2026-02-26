@@ -1,7 +1,7 @@
 // electron/notificationEngine.ts
 // Notification Engine for new anime episodes
 
-import { Notification } from 'electron';
+import { Notification, nativeImage } from 'electron';
 import type Store from 'electron-store';
 import { ShokaiErrorFactory } from './ShokaiErrors.js';
 
@@ -220,7 +220,7 @@ export class NotificationEngine {
 
       // Send notifications
       for (const schedule of newEpisodes) {
-        this.sendNotification(schedule);
+        await this.sendNotification(schedule);
         this.addToHistory(schedule);
       }
 
@@ -324,11 +324,28 @@ export class NotificationEngine {
     return json?.data ?? null;
   }
 
-  private sendNotification(schedule: AiringSchedule) {
+  private async fetchImageAsNativeImage(url: string) {
+    try {
+      const resp = await fetch(url);
+      const buffer = await resp.arrayBuffer();
+      return nativeImage.createFromBuffer(Buffer.from(buffer));
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async sendNotification(schedule: AiringSchedule) {
     const title = schedule.media.title.english || schedule.media.title.romaji || 'New Episode';
+
+    let icon;
+    if (schedule.media.coverImage?.large) {
+      icon = await this.fetchImageAsNativeImage(schedule.media.coverImage.large);
+    }
+
     const notification = new Notification({
       title: title + ' - Episode ' + schedule.episode,
       body: 'Neue Episode ist verfügbar!',
+      icon
     });
 
     notification.show();

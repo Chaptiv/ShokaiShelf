@@ -813,7 +813,11 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('update-available', (info) => {
-    sendUpdaterStatus({ status: 'available', version: info.version });
+    sendUpdaterStatus({
+      status: 'available',
+      version: info.version,
+      releaseNotes: info.releaseNotes
+    });
   });
 
   autoUpdater.on('update-not-available', () => {
@@ -825,12 +829,24 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('update-downloaded', (info) => {
-    sendUpdaterStatus({ status: 'ready', version: info.version });
+    sendUpdaterStatus({
+      status: 'ready',
+      version: info.version,
+      releaseNotes: info.releaseNotes
+    });
   });
 
   autoUpdater.on('error', (err) => {
     logError('[Updater] Error:', err);
-    sendUpdaterStatus({ status: 'error', error: err?.message || 'Unknown error' });
+
+    // Ignore error if it's just "net::ERR_INTERNET_DISCONNECTED" or similar when auto-checking
+    // Or just suppress sending error status to the renderer if we don't want the user bothered
+    const errMsg = err?.message || 'Unknown error';
+    if (errMsg.toLowerCase().includes('net::err_internet_disconnected')) {
+      return; // Silently fail on offline
+    }
+
+    sendUpdaterStatus({ status: 'error', error: errMsg });
   });
 
   // Check for updates after a short delay

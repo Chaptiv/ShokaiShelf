@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { viewerCached, userLists, saveEntry, mediaDetails, deleteEntry, type Media } from "../api/anilist";
@@ -406,6 +406,9 @@ export default function DashboardDream({
   const [profileInsights, setProfileInsights] = useState<ProfileInsights | null>(null);
   const [showInsightsPanel, setShowInsightsPanel] = useState(false);
 
+  // Dashboard Sorting
+  const [sortBy, setSortBy] = useState<"default" | "engineScore" | "newest">("default");
+
   // Load dashboard data
   useEffect(() => {
     getLikedMediaIds().then((ids) => setLikedIds(new Set(ids))).catch(() => { });
@@ -527,6 +530,7 @@ export default function DashboardDream({
     // Find the media object from recommendations
     const rec = data?.recs.find((r) => r.media.id === id);
     if (rec) {
+      // @ts-ignore: Complex mismatch between AniList Media and V3 Media
       setFeedbackModal({ media: rec.media, type: "like" });
     } else {
       // Fallback: save directly without modal
@@ -561,10 +565,12 @@ export default function DashboardDream({
     // Find the media object and show modal
     const rec = data?.recs.find((r) => r.media.id === id);
     if (rec) {
+      // @ts-ignore: Complex mismatch between AniList Media and V3 Media
       setFeedbackModal({ media: rec.media, type: "dislike" });
     } else {
       // Fallback: save directly without modal
-      saveFeedback(id, "dislike", { reason });
+      // @ts-ignore: We want reasons as an array but the fallback only has one
+      saveFeedback(id, "dislike", { reasons: [reason] });
     }
 
     setDislikedIds((prev) => new Set([...prev, id]));
@@ -648,11 +654,39 @@ export default function DashboardDream({
   const handleOpenDetail = useCallback(async (id: number) => {
     try {
       const details = await mediaDetails(id);
+      // Merge recommendation metadata from the dashboard recs onto the fetched media
+      const rec = data?.recs?.find(r => r.media.id === id);
+      if (rec) {
+        (details as any).v3Reasons = rec.reasons;
+        (details as any).v3Confidence = rec.dreamConfidence ?? rec.confidence ?? 0;
+        (details as any).v3Score = rec.dreamScore ?? rec.score ?? 0;
+        (details as any).v3Sources = rec.sources?.map((s: any) => typeof s === 'string' ? s : s.type) ?? [];
+      }
       setSelectedMedia(details);
     } catch (e) {
       logError("Failed to load media details:", e);
     }
-  }, []);
+  }, [data?.recs]);
+
+  // Generate insights and inject into grid, applying sort beforehand (MUST BE BEFORE EARLY RETURNS)
+  const sortedRecs = useMemo(() => {
+    if (!data?.recs) return [];
+    const arr = [...data.recs];
+    if (sortBy === "engineScore") {
+      arr.sort((a, b) => {
+        const aScore = a.dreamScore ?? a.score ?? 0;
+        const bScore = b.dreamScore ?? b.score ?? 0;
+        return bScore - aScore; // descending: highest first
+      });
+    } else if (sortBy === "newest") {
+      arr.sort((a, b) => {
+        const yearA = (a.media as any).seasonYear ?? a.media.startDate?.year ?? 0;
+        const yearB = (b.media as any).seasonYear ?? b.media.startDate?.year ?? 0;
+        return yearB - yearA;
+      });
+    }
+    return arr;
+  }, [data?.recs, sortBy]);
 
   if (isLoading || !data) {
     if (loadError) {
@@ -726,12 +760,11 @@ export default function DashboardDream({
     return <LoadingScreen />;
   }
 
-  // Generate insights and inject into grid
-  const insights = generateInsights(data.viewer, data.current, data.paused, data.recs, {
+  const insights = generateInsights(data.viewer, data.current, data.paused, sortedRecs, {
     openDetail: handleOpenDetail,
     navigate: (p) => onNavigate?.(p)
   }, t);
-  const gridItems = injectInsights(data.recs, insights);
+  const gridItems = injectInsights(sortedRecs, insights);
 
   return (
     <div
@@ -772,6 +805,61 @@ export default function DashboardDream({
             <p style={{ opacity: 0.5, fontSize: "14px" }}>
               {t('dashboard.animeBasedOnTaste', { count: data.recs.length })}
             </p>
+          </div>
+
+          {/* Sorting Controls */}
+          <div style={{ display: "flex", gap: "8px", background: "rgba(255, 255, 255, 0.05)", padding: "4px", borderRadius: "12px" }}>
+            <button
+              onClick={() => {
+                const newSort = sortBy === "engineScore" ? "default" : "engineScore";
+                setSortBy(newSort);
+              }}
+              style={{
+                padding: "8px 16px",
+                background: sortBy === "engineScore" ? "rgba(255, 255, 255, 0.1)" : "transparent",
+                border: "none",
+                borderRadius: "8px",
+                color: sortBy === "engineScore" ? "#00d4ff" : "white",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Engine Score
+            </button>
+            <button
+              onClick={() => {
+                const newSort = sortBy === "newest" ? "default" : "newest";
+                setSortBy(newSort);
+              }}
+              style={{
+                padding: "8px 16px",
+                background: sortBy === "newest" ? "rgba(255, 255, 255, 0.1)" : "transparent",
+                border: "none",
+                borderRadius: "8px",
+                color: sortBy === "newest" ? "#00d4ff" : "white",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              New to Old
+            </button>
+            <button
+              onClick={() => setSortBy("default")}
+              style={{
+                padding: "8px 16px",
+                background: sortBy === "default" ? "rgba(255, 255, 255, 0.1)" : "transparent",
+                border: "none",
+                borderRadius: "8px",
+                color: sortBy === "default" ? "#00d4ff" : "white",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Default
+            </button>
           </div>
         </motion.div>
 
@@ -830,11 +918,11 @@ export default function DashboardDream({
                     reasons as string[],
                     {
                       title,
-                      genres: feedbackModal.media.genres,
+                      genres: feedbackModal.media.genres || undefined,
                       tags: feedbackModal.media.tags?.map(t => t.name),
                       studios: feedbackModal.media.studios?.nodes?.map(s => s.name),
                       year: feedbackModal.media.startDate?.year,
-                      episodes: feedbackModal.media.episodes,
+                      episodes: feedbackModal.media.episodes || undefined,
                     }
                   );
 

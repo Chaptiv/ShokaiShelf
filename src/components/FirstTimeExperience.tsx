@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import tokens from '@shingen/tokens';
 import logo from '../assets/logo.png';
-import { MdCheck, MdSearch } from 'react-icons/md';
+import { MdCheck, MdSearch, MdHelpOutline } from 'react-icons/md';
 import { savePreferences, completeColdStart } from '@logic/preferences-store';
 import { searchAnime } from '@api/anilist';
 import type { Media } from '@api/anilist';
@@ -248,6 +248,7 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
 function SetupStep({ data, setData, onNext, t }: any) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [showHelp, setShowHelp] = useState(false);
 
     const handleSave = async () => {
         if (!data.clientId || !data.clientSecret) {
@@ -271,8 +272,45 @@ function SetupStep({ data, setData, onNext, t }: any) {
 
     return (
         <CenteredLayout title={t('setup.title')} subtitle={t('setup.subtitle')}>
-            <div style={{ width: '100%', maxWidth: 400 }}>
-                <Input label={t('setup.clientId')} value={data.clientId} onChange={(e: any) => setData({ ...data, clientId: e.target.value })} placeholder="1234" />
+            <div style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
+                <Input
+                    label={t('setup.clientId')}
+                    value={data.clientId}
+                    onChange={(e: any) => setData({ ...data, clientId: e.target.value })}
+                    placeholder="1234"
+                    helpIcon={true}
+                    onHelpToggle={() => setShowHelp(!showHelp)}
+                />
+                <AnimatePresence>
+                    {showHelp && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            style={{
+                                background: 'rgba(30, 41, 59, 0.95)',
+                                border: '1px solid rgba(0, 212, 255, 0.3)',
+                                borderRadius: 12,
+                                padding: 16,
+                                marginBottom: 16,
+                                marginTop: -4,
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                                zIndex: 10,
+                                position: 'relative'
+                            }}
+                        >
+                            <h4 style={{ margin: '0 0 12px 0', fontSize: 14, color: '#00d4ff' }}>{t('setup.howToGetId')}</h4>
+                            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
+                                <li>{t('setup.instructions.step1')} (<a href="https://anilist.co/settings/developer" target="_blank" rel="noreferrer" style={{ color: '#00d4ff' }}>Link</a>)</li>
+                                <li>{t('setup.instructions.step2')}</li>
+                                <li>{t('setup.instructions.step3')}</li>
+                                <li>{t('setup.instructions.step4')}</li>
+                                <li>{t('setup.instructions.step5')}</li>
+                            </ol>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 <div style={{ height: 16 }} />
                 <Input label={t('setup.clientSecret')} value={data.clientSecret} onChange={(e: any) => setData({ ...data, clientSecret: e.target.value })} type="password" placeholder="...secret..." />
 
@@ -588,10 +626,19 @@ function FlowLayout({ title, subtitle, children, onNext, onBack, onSkip, canProc
     );
 }
 
-function Input({ label, ...props }: any) {
+function Input({ label, helpIcon, onHelpToggle, ...props }: any) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.7, fontWeight: 600 }}>{label}</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <label style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.7, fontWeight: 600 }}>{label}</label>
+                {helpIcon && (
+                    <MdHelpOutline
+                        size={16}
+                        style={{ cursor: 'pointer', opacity: 0.8, color: '#00d4ff' }}
+                        onClick={onHelpToggle}
+                    />
+                )}
+            </div>
             <input
                 {...props}
                 style={{

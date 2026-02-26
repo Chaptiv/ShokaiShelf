@@ -42,7 +42,14 @@
     "episode": "Episode",
     "ongoing": "Laufend",
     "episodes_count": "{{count}} Episoden",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "errorBoundary": {
+      "title": "Ups, etwas ist schiefgelaufen.",
+      "message": "ShokaiShelf ist abgestürzt. Das tut uns leid. Bitte lade die App neu oder kopiere den Fehlerbericht.",
+      "reload": "Neu laden",
+      "copyLog": "Details kopieren",
+      "copied": "Fehlerdetails kopiert!"
+    }
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -258,7 +265,15 @@
     "configSaved": "Konfiguration gespeichert.",
     "reloadApp": "App neu laden",
     "saveAndContinue": "Speichern & fortfahren",
-    "publicBuildsNote": "Für Public-Builds bitte eigene Keys nutzen."
+    "publicBuildsNote": "Für Public-Builds bitte eigene Keys nutzen.",
+    "howToGetId": "Wie bekomme ich eine Client ID & Secret?",
+    "instructions": {
+      "step1": "Gehe in die AniList Developer Settings",
+      "step2": "Klicke auf 'Create New Client'",
+      "step3": "Gib 'ShokaiShelf' als Namen ein",
+      "step4": "Trage die Redirect URI exakt wie unten beschrieben ein",
+      "step5": "Speichern und die ID und Secret kopieren"
+    }
   },
   "login": {
     "title": "Nicht angemeldet",
@@ -630,6 +645,35 @@
     "noVoiceActor": "Kein Synchronsprecher verfügbar"
   },
   "feedbackV4": {
+    "popover": {
+      "whyNot": "Warum nicht?",
+      "reasons": {
+        "too_long": {
+          "label": "Zu lang",
+          "description": "Weniger Episoden bitte"
+        },
+        "artstyle": {
+          "label": "Artstyle",
+          "description": "Nicht mein visueller Stil"
+        },
+        "boring": {
+          "label": "Langweilig",
+          "description": "Klingt nicht interessant"
+        },
+        "mood_wrong": {
+          "label": "Falscher Vibe",
+          "description": "Passt nicht zur Stimmung"
+        },
+        "already_seen": {
+          "label": "Schon gesehen",
+          "description": "Kenne ich bereits"
+        },
+        "not_now": {
+          "label": "Nicht jetzt",
+          "description": "Später nochmal zeigen"
+        }
+      }
+    },
     "title": {
       "like": "Warum hat es dir gefallen?",
       "dislike": "Warum hat es dir nicht gefallen?"
@@ -717,6 +761,9 @@
     "aiTitle": "KI Empfehlung",
     "netrecV3": "NetRec V3 Engine",
     "match": "Match",
+    "netRecExtendedAnalysis": "NetRec Erweiterte Analyse",
+    "extendedSources": "Quellen",
+    "breakdown_v3": "Diese Empfehlung wurde basierend auf deinem Geschmack, deinen Lieblingsgenres und der Studio-Historie aus deiner Watchlist generiert. Ein Konfidenzwert von {{confidence}}% deutet auf eine hohe Wahrscheinlichkeit hin, dass dir dieser Anime gefällt.",
     "seasons": {
       "spring": "Frühling",
       "summer": "Sommer",
@@ -893,29 +940,56 @@
     "error": "Update-Prüfung fehlgeschlagen"
   },
   "explain": {
-    "currentSimilar": "Du schaust gerade \"{{title}}\" – das passt perfekt dazu!",
+    "currentSimilar": "Du schaust gerade \"{{title}}\" — das hier passt perfekt dazu!",
+    "currentSimilarGenre": "Teilt den gleichen {{genre}}-Vibe wie \"{{title}}\", das du gerade schaust",
+    "cfMulti": "Fans von \"{{title1}}\" und \"{{title2}}\" lieben das hier auch",
+    "cfMultiLoved": "Du hast \"{{title1}}\" und \"{{title2}}\" geliebt — wer das tat, liebt meist auch das hier",
+    "cfSingle": "Wenn dir \"{{title}}\" gefallen hat, ist das hier genau dein Ding",
+    "cfSingleLoved": "Da du \"{{title}}\" geliebt hast, dürfte dieser {{genre}}-Pick genauso treffen",
     "similarTo": "Ähnlich wie {{titles}}",
     "recommendedForFans": "Empfohlen für Fans von \"{{title}}\"",
     "recommendedForFansLoved": "Empfohlen für Fans von \"{{title}}\" (das du liebst)",
-    "similarToLiked": "Ähnlich zu Anime die du geliket hast",
+    "likedSimilar": "Passt gut zu den Anime, die du geliket hast",
+    "likedSimilarGenre": "Deine Likes zeigen, dass du {{genre}} magst — das hier trifft ins Schwarze",
+    "feedbackAligned": "Passt zu deinem Geschmack und vermeidet Muster, die du nicht mochtest",
     "basedOnFeedback": "Basierend auf deinem Feedback empfohlen",
+    "similarToLiked": "Ähnlich zu Anime die du geliket hast",
     "relation": "{{relation}} zu \"{{title}}\"",
-    "relationLoved": "{{relation}} zu \"{{title}}\" (das du liebst)",
+    "relationLoved": "{{relation}} zu \"{{title}}\" — das du hoch bewertet hast",
+    "genreTrackRecord": "Du hast {{count}} {{genre}}-Anime geschaut und {{percentage}}% davon mit 8+ bewertet",
+    "genreEnjoy": "Du hast {{count}} andere {{genre}}-Serien genossen — das hier setzt die Reihe fort",
+    "genreCombo": "Eine Mischung aus {{genre1}} und {{genre2}}, die zu deinem Geschmack passt",
     "genreHighScored": "{{genre}}: Du hast {{percentage}}% mit 8+ bewertet",
     "matchingGenres": "Passende Genres: {{genres}}",
+    "studioTrackRecord": "{{studio}} hat {{count}} Shows die du beendet hast — mit ⌀ {{avg}}/10",
+    "studioFamiliar": "Von {{studio}}, deren Arbeit du mit {{avg}}/10 bewertest",
     "studioAvg": "{{studio}} hat bei dir ⌀ {{avg}}/10",
-    "studioKnown": "Studio: {{studio}} (kennst du bereits)",
+    "studioKnown": "Von {{studio}} — ein Studio, das du bereits kennst",
+    "themeLovedExample": "Teilt den \"{{theme}}\"-Vibe den du in \"{{title}}\" geliebt hast",
+    "themeExample": "Bietet \"{{theme}}\" — ein Thema das du aus \"{{title}}\" kennst",
+    "themesMix": "Mischt \"{{theme1}}\" und \"{{theme2}}\" — Themen die dir gefallen",
+    "themeStrong": "Starke \"{{theme}}\"-Vibes die zu deinen Interessen passen",
     "tagSimilar": "Thema \"{{tag}}\" – ähnlich wie {{title}}",
     "similarThemes": "Ähnliche Themen: {{themes}}",
+    "seasonalHit": "Ein Highlight dieser {{season}}-Season — bereits {{score}} in der Community",
+    "seasonalNew": "Frisch aus dieser {{season}}-Season — noch während der Ausstrahlung",
+    "recentRelease": "Ein aktueller {{year}}-Release der sich lohnt",
     "currentSeason": "Aktueller {{season}} {{year}} Anime",
     "newRelease": "Neu erschienen",
     "newReleaseYear": "Neu erschienen ({{year}})",
+    "communityElite": "Bewertet mit {{score}}/100 — in den Top {{percentile}}% aller Anime",
+    "communityWellLoved": "Von der Community geliebt mit {{score}}/100",
     "higherRated": "Höher bewertet als {{percentile}}% aller Anime",
     "topPopular": "Top {{rank}} der beliebtesten Anime",
+    "quickWatch": "Ein schneller {{episodes}}-Episoden-Watch — leicht unterzubringen",
+    "longInvest": "{{episodes}} Episoden hochwertigen Content — eine lohnende Investition",
+    "fitsLength": "{{episodes}} Episoden — eine gute Länge für deine Gewohnheiten",
     "bingeLonger": "Länger als üblich mit {{episodes}} Episoden",
     "bingeShort": "Schön kurz mit {{episodes}} Episoden",
     "bingePerfect": "Perfekte Länge mit {{episodes}} Episoden",
+    "formatSuccess": "{{format}}: Du beendest {{percentage}}% davon — gute Erfolgsbilanz",
     "formatCompletion": "{{format}}: Du completest {{percentage}}%",
+    "caughtEyeBefore": "Das hier hat schon mal dein Interesse geweckt — lohnt einen näheren Blick",
     "previousInterest": "Du hattest bereits Interesse an diesem Anime",
     "recommendedForYou": "Empfohlen für dich",
     "templateCfContent": "Basierend auf deiner Watch-History und ähnlichen Anime",

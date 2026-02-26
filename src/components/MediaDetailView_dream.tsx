@@ -68,6 +68,7 @@ export default function MediaDetailView_dream({
   );
   const [saved, setSaved] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
 
   const max = media.episodes || 12;
   const bounds = getScoreBounds(scoreFormat);
@@ -422,83 +423,168 @@ export default function MediaDetailView_dream({
             {title}
           </motion.h1>
 
-          {/* V3 AI Recommendation */}
+          {/* Dream AI Recommendation */}
           {hasV3Data && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              style={{
-                marginBottom: 32,
-                padding: 24,
-                background: "linear-gradient(135deg, rgba(0, 212, 255, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)",
-                border: "1px solid rgba(0, 212, 255, 0.2)",
-                borderRadius: 16,
-              }}
+              style={{ marginBottom: 24 }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+              {/* Compact bar — always visible */}
+              <button
+                onClick={() => setShowWhy(!showWhy)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 16px",
+                  background: "linear-gradient(135deg, rgba(0, 212, 255, 0.10) 0%, rgba(168, 85, 247, 0.10) 100%)",
+                  border: "1px solid rgba(0, 212, 255, 0.15)",
+                  borderRadius: showWhy ? "14px 14px 0 0" : 14,
+                  cursor: "pointer",
+                  transition: "border-radius 0.2s",
+                  textAlign: "left",
+                }}
+              >
                 <div style={{
-                  width: 48,
-                  height: 48,
+                  width: 32,
+                  height: 32,
                   borderRadius: "50%",
                   background: "linear-gradient(135deg, #00d4ff 0%, #a855f7 100%)",
                   display: "grid",
                   placeItems: "center",
-                  boxShadow: "0 8px 24px rgba(0, 212, 255, 0.3)",
+                  flexShrink: 0,
+                  boxShadow: "0 4px 12px rgba(0, 212, 255, 0.25)",
                 }}>
-                  <MdSmartToy size={24} />
+                  <MdSmartToy size={16} color="#fff" />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{t('media.aiRecommendation')}</h3>
-                  <div style={{ fontSize: 12, opacity: 0.6 }}>NetRec V3 Engine</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
+                    {reasons[0] || t('media.aiRecommendation')}
+                  </div>
+                  <div style={{ fontSize: 10, opacity: 0.5, color: "#fff" }}>Dream Engine</div>
                 </div>
                 <div style={{
-                  padding: "12px 20px",
+                  padding: "6px 12px",
                   background: confidence >= 70
-                    ? "rgba(34, 197, 94, 0.15)"
+                    ? "rgba(34, 197, 94, 0.2)"
                     : confidence >= 50
-                      ? "rgba(59, 130, 246, 0.15)"
-                      : "rgba(251, 191, 36, 0.15)",
-                  border: `2px solid ${confidence >= 70 ? "#22c55e" : confidence >= 50 ? "#3b82f6" : "#fbbf24"
-                    }`,
-                  borderRadius: 12,
+                      ? "rgba(59, 130, 246, 0.2)"
+                      : "rgba(251, 191, 36, 0.2)",
+                  border: `1px solid ${confidence >= 70 ? "rgba(34,197,94,0.5)" : confidence >= 50 ? "rgba(59,130,246,0.5)" : "rgba(251,191,36,0.5)"}`,
+                  borderRadius: 8,
                   textAlign: "center",
+                  flexShrink: 0,
                 }}>
-                  <div style={{ fontSize: 28, fontWeight: 900 }}>{confidence}%</div>
-                  <div style={{ fontSize: 10, opacity: 0.7, textTransform: "uppercase" }}>Match</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: "#fff" }}>{confidence}%</div>
+                  <div style={{ fontSize: 8, opacity: 0.6, textTransform: "uppercase", color: "#fff" }}>Match</div>
                 </div>
-              </div>
+                <MdExpandMore
+                  size={20}
+                  color="rgba(255,255,255,0.4)"
+                  style={{
+                    transform: showWhy ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.25s ease",
+                    flexShrink: 0,
+                  }}
+                />
+              </button>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {reasons.map((reason, i) => (
-                  <div
-                    key={i}
+              {/* Expanded panel */}
+              <AnimatePresence>
+                {showWhy && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "12px 16px",
-                      background: "rgba(255, 255, 255, 0.04)",
-                      borderRadius: 10,
+                      overflow: "hidden",
+                      background: "linear-gradient(180deg, rgba(0, 212, 255, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)",
+                      border: "1px solid rgba(0, 212, 255, 0.15)",
+                      borderTop: "none",
+                      borderRadius: "0 0 14px 14px",
                     }}
                   >
-                    <div style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      background: "linear-gradient(135deg, #00d4ff 0%, #a855f7 100%)",
-                      display: "grid",
-                      placeItems: "center",
-                      fontSize: 12,
-                      fontWeight: 900,
-                      flexShrink: 0,
-                    }}>
-                      {i + 1}
+                    <div style={{ padding: "16px 16px 20px" }}>
+                      {/* All reasons */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {reasons.map((reason, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              padding: "10px 14px",
+                              background: "rgba(255, 255, 255, 0.03)",
+                              borderRadius: 10,
+                              borderLeft: `3px solid ${i === 0 ? "#00d4ff" : i === 1 ? "#a855f7" : "rgba(255,255,255,0.15)"}`,
+                            }}
+                          >
+                            <span style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: "50%",
+                              background: i === 0
+                                ? "linear-gradient(135deg, #00d4ff, #0099cc)"
+                                : i === 1
+                                  ? "linear-gradient(135deg, #a855f7, #7c3aed)"
+                                  : "rgba(255,255,255,0.1)",
+                              display: "grid",
+                              placeItems: "center",
+                              fontSize: 10,
+                              fontWeight: 800,
+                              flexShrink: 0,
+                              color: "#fff",
+                            }}>
+                              {i + 1}
+                            </span>
+                            <span style={{ fontSize: 13, lineHeight: 1.4, color: "rgba(255,255,255,0.85)" }}>{reason}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Sources */}
+                      {media.v3Sources && media.v3Sources.length > 0 && (
+                        <div style={{ marginTop: 14 }}>
+                          <div style={{ opacity: 0.45, fontSize: 10, textTransform: "uppercase", marginBottom: 6, letterSpacing: "0.5px", color: "#fff" }}>
+                            {t('recommendations.extendedSources', 'Sources')}
+                          </div>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {media.v3Sources.map((src, i) => (
+                              <span key={i} style={{
+                                padding: "3px 10px",
+                                background: "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(255,255,255,0.08)",
+                                borderRadius: 20,
+                                fontSize: 10,
+                                color: "rgba(255,255,255,0.6)",
+                              }}>
+                                {src}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Breakdown */}
+                      <div style={{ marginTop: 14, padding: 12, background: "rgba(0,0,0,0.2)", borderRadius: 10 }}>
+                        <div style={{ opacity: 0.45, fontSize: 10, textTransform: "uppercase", marginBottom: 6, letterSpacing: "0.5px", color: "#fff" }}>
+                          Breakdown
+                        </div>
+                        <div style={{ fontSize: 12, lineHeight: 1.6, color: "rgba(255,255,255,0.6)" }}>
+                          {t('recommendations.breakdown_v3', {
+                            confidence: confidence,
+                            defaultValue: `This recommendation was generated by combining weighted factors such as your preferred genres (${(media as any).genres?.slice(0, 2).join(", ")}), the studio's track record in your list, and the average score alignment. The confidence interval of ${confidence}% indicates a high probability of enjoyment based on your past completions.`
+                          })}
+                        </div>
+                      </div>
                     </div>
-                    <span style={{ fontSize: 14, lineHeight: 1.4 }}>{reason}</span>
-                  </div>
-                ))}
-              </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
 

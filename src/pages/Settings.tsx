@@ -309,6 +309,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
   const [heroSpeed, setHeroSpeed] = useState(5);
   const [showScores, setShowScores] = useState(true);
   const [showProgressBars, setShowProgressBars] = useState(true);
+  const [enableCloudAPI, setEnableCloudAPI] = useState(false);
   const [currentLang, setCurrentLang] = useState<"de" | "en">(getCurrentLanguage());
 
   const TABS: TabConfig[] = [
@@ -355,6 +356,9 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
 
       const progress = await window.shokai?.store?.get("ui.showProgressBars");
       setShowProgressBars(progress !== false);
+
+      const cloudApiReq = await window.shokai?.store?.get("app.enableCloudAPI");
+      setEnableCloudAPI(cloudApiReq === true);
 
     } catch (e) {
       logError("[Settings] Load error:", e);
@@ -489,7 +493,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
             }} />
             {t('settings.engineActive')}
           </div>
-          <div style={{ marginTop: 8, opacity: 0.7 }}>v0.2.0</div>
+          <div style={{ marginTop: 8, opacity: 0.7 }}>v{__APP_VERSION__}</div>
         </div>
       </div>
 
@@ -548,6 +552,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
                     ]}
                   />
                 </SettingsCard>
+
               </div>
             )}
 
@@ -725,25 +730,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
                   )}
                 </SettingsCard>
 
-                <SettingsCard title={t("settings.dashboard.cards")} delay={0.2}>
-                  <DreamToggle
-                    checked={showScores}
-                    onChange={async (value) => {
-                      setShowScores(value);
-                      await saveSetting("ui.showScores", value);
-                    }}
-                    label={t("settings.dashboard.showScores")}
-                  />
 
-                  <DreamToggle
-                    checked={showProgressBars}
-                    onChange={async (value) => {
-                      setShowProgressBars(value);
-                      await saveSetting("ui.showProgressBars", value);
-                    }}
-                    label={t("settings.dashboard.showProgressBars")}
-                  />
-                </SettingsCard>
               </div>
             )}
 

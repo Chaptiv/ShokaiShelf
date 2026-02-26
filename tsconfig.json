@@ -2,7 +2,10 @@
   "compilerOptions": {
     "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["ES2022", "DOM"],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     "jsx": "react-jsx",
@@ -13,13 +16,31 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@shingen/*": ["src/shingen/*"],
-      "@api/*": ["src/api/*"],
-      "@components/*": ["src/components/*"],
-      "@pages/*": ["src/pages/*"],
-      "@state/*": ["src/state/*"],
-      "@logic/*": ["src/logic/*"]
+      "@shingen/*": [
+        "src/shingen/*"
+      ],
+      "@api/*": [
+        "src/api/*"
+      ],
+      "@components/*": [
+        "src/components/*"
+      ],
+      "@pages/*": [
+        "src/pages/*"
+      ],
+      "@state/*": [
+        "src/state/*"
+      ],
+      "@logic/*": [
+        "src/logic/*"
+      ],
+      "@utils/*": [
+        "src/utils/*"
+      ]
     }
   },
-  "include": ["src", "electron"]
+  "include": [
+    "src",
+    "electron"
+  ]
 }

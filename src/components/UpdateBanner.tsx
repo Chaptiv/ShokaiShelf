@@ -8,6 +8,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type UpdateStatus =
     | "idle"
@@ -22,12 +24,14 @@ interface UpdateInfo {
     version?: string;
     progress?: number;
     error?: string;
+    releaseNotes?: string | Array<{ version: string; note: string }> | any;
 }
 
 export default function UpdateBanner() {
     const { t } = useTranslation();
     const [update, setUpdate] = useState<UpdateInfo>({ status: "idle" });
     const [dismissed, setDismissed] = useState(false);
+    const [showChangelog, setShowChangelog] = useState(false);
 
     useEffect(() => {
         const api = (window as any).shokai?.updater;
@@ -56,6 +60,10 @@ export default function UpdateBanner() {
 
     const handleDismiss = useCallback(() => {
         setDismissed(true);
+    }, []);
+
+    const toggleChangelog = useCallback(() => {
+        setShowChangelog(prev => !prev);
     }, []);
 
     // Only show for actionable states
@@ -117,6 +125,12 @@ export default function UpdateBanner() {
                                 </div>
                             )}
 
+                            {update.status === "ready" && update.releaseNotes && (
+                                <button onClick={toggleChangelog} style={styles.changelogBtn}>
+                                    {t("updater.viewChangelog", "What's New")}
+                                </button>
+                            )}
+
                             {update.status === "ready" && (
                                 <button onClick={handleInstall} style={styles.installBtn}>
                                     {t("updater.restart")}
@@ -131,6 +145,44 @@ export default function UpdateBanner() {
                         </div>
                     </div>
                 </motion.div>
+            )}
+
+            {/* Changelog Modal Overlay */}
+            {showChangelog && update.releaseNotes && (
+                <div style={styles.modalOverlay} onClick={toggleChangelog}>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                        style={styles.modalContent}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div style={styles.modalHeader}>
+                            <h2 style={styles.modalTitle}>
+                                {t("updater.changelogTitle", "Release Notes")} (v{update.version})
+                            </h2>
+                            <button onClick={toggleChangelog} style={styles.modalCloseBtn}>✕</button>
+                        </div>
+                        <div style={styles.modalBody}>
+                            <div style={styles.markdownWrapper}>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {typeof update.releaseNotes === "string"
+                                        ? update.releaseNotes
+                                        // electron-updater sometimes sends releaseNotes as an array of objects
+                                        : Array.isArray(update.releaseNotes)
+                                            ? update.releaseNotes.map((n: any) => n.note).join('\n\n')
+                                            : "No release notes provided."}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+                        <div style={styles.modalFooter}>
+                            <button onClick={handleInstall} style={styles.installBtnLarge}>
+                                {t("updater.restartToInstall", "Restart & Install Update")}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
             )}
         </AnimatePresence>
     );
@@ -270,4 +322,149 @@ const styles: Record<string, React.CSSProperties> = {
         borderRadius: 6,
         lineHeight: 1,
     },
+    changelogBtn: {
+        background: "rgba(0, 212, 255, 0.1)",
+        color: "#00d4ff",
+        border: "1px solid rgba(0, 212, 255, 0.2)",
+        borderRadius: 8,
+        padding: "6px 12px",
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        letterSpacing: "0.01em",
+        transition: "all 0.2s ease",
+    },
+    modalOverlay: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(5, 7, 12, 0.75)",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 100000, // Above everything
+    },
+    modalContent: {
+        width: "90%",
+        maxWidth: 600,
+        maxHeight: "85vh",
+        background: "#080c14", // Deep dark background
+        border: "1px solid rgba(0, 212, 255, 0.2)",
+        borderRadius: 16,
+        boxShadow: "0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,212,255,0.05)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+    },
+    modalHeader: {
+        padding: "16px 20px",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        background: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)",
+    },
+    modalTitle: {
+        margin: 0,
+        fontSize: 16,
+        fontWeight: 700,
+        color: "#fff",
+        background: "linear-gradient(135deg, #fff 0%, #a5b4fc 100%)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+    },
+    modalCloseBtn: {
+        background: "transparent",
+        border: "none",
+        color: "rgba(255, 255, 255, 0.4)",
+        cursor: "pointer",
+        fontSize: 16,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 4,
+    },
+    modalBody: {
+        padding: "20px 24px",
+        overflowY: "auto",
+        flex: 1,
+    },
+    markdownWrapper: {
+        color: "rgba(255, 255, 255, 0.85)",
+        fontSize: 14,
+        lineHeight: 1.6,
+        // Optional nested styling for markdown elements could go here
+    },
+    modalFooter: {
+        padding: "16px 20px",
+        borderTop: "1px solid rgba(255, 255, 255, 0.05)",
+        display: "flex",
+        justifyContent: "flex-end",
+        background: "rgba(0,0,0,0.2)",
+    },
+    installBtnLarge: {
+        background: "linear-gradient(135deg, #00d4ff, #7c3aed)",
+        color: "#fff",
+        border: "none",
+        borderRadius: 8,
+        padding: "10px 20px",
+        fontSize: 14,
+        fontWeight: 700,
+        cursor: "pointer",
+        letterSpacing: "0.02em",
+        boxShadow: "0 4px 12px rgba(124, 58, 237, 0.2)",
+    }
 };
+
+// Add global styles for the Markdown wrapper so it renders lists/headers nicely
+if (typeof document !== 'undefined') {
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .markdownWrapper h1, .markdownWrapper h2, .markdownWrapper h3 {
+            color: #fff;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+        .markdownWrapper h1:first-child, .markdownWrapper h2:first-child, .markdownWrapper h3:first-child {
+            margin-top: 0;
+        }
+        .markdownWrapper ul, .markdownWrapper ol {
+            padding-left: 1.5em;
+            margin-bottom: 1em;
+        }
+        .markdownWrapper li {
+            margin-bottom: 0.25em;
+        }
+        .markdownWrapper code {
+            background: rgba(255,255,255,0.1);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .markdownWrapper pre {
+            background: rgba(0,0,0,0.3);
+            padding: 1em;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .markdownWrapper blockquote {
+            border-left: 3px solid #00d4ff;
+            margin: 0;
+            padding-left: 1em;
+            color: rgba(255,255,255,0.6);
+        }
+        .markdownWrapper a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+    `;
+    document.head.appendChild(style);
+}

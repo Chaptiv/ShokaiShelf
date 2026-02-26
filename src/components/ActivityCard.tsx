@@ -10,12 +10,9 @@ import {
   fetchActivityReplies,
   saveActivityReply,
   type ActivityEntry,
-  type ActivityReply,
 } from "@api/anilist";
 import { MdFavorite, MdFavoriteBorder, MdComment, MdSend } from "react-icons/md";
-// Simple HTML sanitization (strip dangerous tags)
-const sanitizeAniListHTML = (html: string) =>
-  html?.replace(/<script[^>]*>.*?<\/script>/gi, "") ?? "";
+import { sanitizeAniListHTML } from "@utils/sanitize";
 
 interface Props {
   activity: ActivityEntry;
@@ -27,7 +24,7 @@ export default function ActivityCard({ activity, onMediaClick }: Props) {
   const [isLiked, setIsLiked] = useState(activity.isLiked || false);
   const [likeCount, setLikeCount] = useState(activity.likeCount || 0);
   const [showReplies, setShowReplies] = useState(false);
-  const [replies, setReplies] = useState<ActivityReply[]>([]);
+  const [replies, setReplies] = useState<any[]>([]);
   const [replyText, setReplyText] = useState("");
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [posting, setPosting] = useState(false);

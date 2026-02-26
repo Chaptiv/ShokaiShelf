@@ -411,6 +411,25 @@ export default function Settings_Scrobbler() {
           label={t("settings.scrobbler.enabled")}
           description={t("settings.scrobbler.enabledDesc")}
         />
+
+        <div style={{
+          marginTop: 16,
+          padding: 12,
+          background: "rgba(239, 68, 68, 0.1)",
+          border: `1px solid rgba(239, 68, 68, 0.3)`,
+          borderRadius: 8,
+          display: "flex",
+          gap: 12,
+          alignItems: "flex-start",
+          color: DREAM.colors.danger,
+          fontSize: 13,
+          lineHeight: 1.5
+        }}>
+          <MdBlock size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <strong>Note:</strong> The Scrobbler is highly experimental and relies on reading window titles from the host OS. Depending on your system language, media player versions, and OS security settings, it probably won't work out of the box.
+          </div>
+        </div>
       </SettingsCard>
 
       {/* Debug Zone */}
