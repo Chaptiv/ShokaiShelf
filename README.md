@@ -33,7 +33,7 @@
 
 ShokaiShelf is a desktop anime tracker that syncs with [AniList](https://anilist.co) and gives you **personalized recommendations that are calculated entirely on your machine** — no data ever leaves your computer. Browse your library, track what you're watching, discover your next obsession, and flex your stats, all from one app with a glassmorphism UI that actually looks good.
 
-> **Status:** Public Beta (v0.2.0 "NetRec Dream")
+> **Status:** Public Beta (v0.2.1 "NetRec Dream")
 > Available for **Windows**, **macOS**, and **Linux**.
 
 ---
