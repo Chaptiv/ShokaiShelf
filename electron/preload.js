@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("shokai", {
   },
   auth: {
     login: () => ipcRenderer.invoke("auth:login"),
+    loginBeta: () => ipcRenderer.invoke("auth:login-beta"),
     logout: () => ipcRenderer.invoke("auth:logout"),
     onUpdated: (cb) => {
       const handler = (_e, tokens) => cb(tokens);

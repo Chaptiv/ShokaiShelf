@@ -107,7 +107,7 @@ export default function UpdateBanner() {
                                     t("updater.downloading", {
                                         progress: Math.round(update.progress ?? 0),
                                     })}
-                                {update.status === "ready" && t("updater.ready")}
+                                {update.status === "ready" && t("updater.readyNew", "New Update Available!")}
                                 {update.status === "error" && t("updater.error")}
                             </span>
                         </div>
@@ -133,7 +133,7 @@ export default function UpdateBanner() {
 
                             {update.status === "ready" && (
                                 <button onClick={handleInstall} style={styles.installBtn}>
-                                    {t("updater.restart")}
+                                    {t("updater.downloadUrl", "Download Update")}
                                 </button>
                             )}
 
@@ -178,7 +178,7 @@ export default function UpdateBanner() {
                         </div>
                         <div style={styles.modalFooter}>
                             <button onClick={handleInstall} style={styles.installBtnLarge}>
-                                {t("updater.restartToInstall", "Restart & Install Update")}
+                                {t("updater.downloadNow", "Download Update")}
                             </button>
                         </div>
                     </motion.div>

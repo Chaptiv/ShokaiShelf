@@ -41,18 +41,33 @@ async function bumpVersion() {
     const bumpType = await select({
         message: 'Select version bump type:',
         choices: [
-            { name: 'patch', value: 'patch' },
-            { name: 'minor', value: 'minor' },
-            { name: 'major', value: 'major' },
+            { name: 'patch (0.0.x)', value: 'patch' },
+            { name: 'minor (0.x.0)', value: 'minor' },
+            { name: 'major (x.0.0)', value: 'major' },
+            { name: 'hotfix (0.x.x.x)', value: 'hotfix' },
             { name: 'custom', value: 'custom' }
         ]
     });
 
     let newVersion;
-    if (bumpType === 'custom') {
+    if (bumpType === 'hotfix') {
+        const parts = currentVersion.split('.');
+        if (parts.length === 3) {
+            newVersion = `${currentVersion}.1`;
+        } else if (parts.length === 4) {
+            const patchNum = parseInt(parts[3], 10) + 1;
+            newVersion = `${parts[0]}.${parts[1]}.${parts[2]}.${patchNum}`;
+        } else {
+            newVersion = `${currentVersion}.1`;
+        }
+    } else if (bumpType === 'custom') {
         const customVer = await input({
-            message: 'Enter custom version:',
-            validate: (val) => semver.valid(val) ? true : 'Invalid semantic version'
+            message: 'Enter custom version (e.g. 0.2.1 or 0.2.1.1):',
+            validate: (val) => {
+                const isValidStrict = semver.valid(val) !== null;
+                const isValid4Digit = /^\d+\.\d+\.\d+\.\d+$/.test(val);
+                return (isValidStrict || isValid4Digit) ? true : 'Invalid version format';
+            }
         });
         newVersion = customVer;
     } else {
@@ -141,10 +156,33 @@ async function buildAndPrepare() {
         validate: (ans) => ans.length > 0 ? true : 'Must select at least one platform.'
     });
 
+    const changelogPathInput = await input({
+        message: 'Drag & drop a Markdown file for Release Notes/Changelog (or press Enter to skip):'
+    });
+
     const pkg = await fs.readJson(path.join(projectRoot, 'package.json'));
     const version = pkg.version;
     const uploadPrepDir = path.join(projectRoot, 'artifacts');
-    await fs.ensureDir(uploadPrepDir);
+    await fs.emptyDir(uploadPrepDir); // Always clear out old artifacts
+
+    const releaseDir = path.join(projectRoot, 'release');
+    if (await fs.pathExists(releaseDir)) {
+        console.log(chalk.yellow('Cleaning up old release directory...'));
+        await fs.emptyDir(releaseDir);
+    }
+
+    let injectedReleaseNotes = false;
+    if (changelogPathInput.trim()) {
+        const parsedPath = changelogPathInput.trim().replace(/^['"]|['"]$/g, '').replace(/\\ /g, ' ').trim();
+        if (await fs.pathExists(parsedPath)) {
+            const content = await fs.readFile(parsedPath, 'utf8');
+            await fs.writeFile(path.join(projectRoot, 'release-notes.md'), content);
+            console.log(chalk.green(`✓ Injected release notes from ${path.basename(parsedPath)}`));
+            injectedReleaseNotes = true;
+        } else {
+            console.log(chalk.yellow(`⚠️ Could not find file at ${parsedPath}, skipping release notes.`));
+        }
+    }
 
     console.log(chalk.yellow('\nStarting Build Process...'));
     shell.cd(projectRoot);
@@ -164,28 +202,30 @@ async function buildAndPrepare() {
             return;
         }
 
-        // Copy macOS artifacts
+        // Copy macOS artifacts (only DMG for 0.2.2)
         const releaseDir = path.join(projectRoot, 'release', version);
         if (await fs.pathExists(releaseDir)) {
             let count = 0;
             const files = await fs.readdir(releaseDir);
             for (const file of files) {
-                if (file.endsWith('.dmg') || file.endsWith('.zip') || file.endsWith('.blockmap') || file.endsWith('.yml')) {
+                if (file.endsWith('.dmg')) {
                     await fs.copy(path.join(releaseDir, file), path.join(uploadPrepDir, file));
                     console.log(chalk.green(`✓ Collected ${file}`));
                     count++;
                 }
             }
-            if (count === 0) console.log(chalk.yellow('⚠️ No macOS artifacts found to collect.'));
+            if (count === 0) console.log(chalk.yellow('⚠️ No macOS DMG found to collect.'));
         } else {
             console.log(chalk.red(`macOS release directory not found at: ${releaseDir}`));
         }
     }
 
     if (targets.includes('win')) {
-        console.log(chalk.cyan('\nBuilding Windows Main App (Unpacked)...'));
-        if (shell.exec(`npx electron-builder --win --dir --x64`).code !== 0) {
-            console.log(chalk.red('Windows Unpacked build failed!'));
+        console.log(chalk.cyan('\nBuilding Windows Payload (win-unpacked)...'));
+        // For 0.2.2 we don't need nsis-web auto-updater payload, just the win-unpacked folder
+        // for the Custom Installer to wrap.
+        if (shell.exec(`npx electron-builder --win dir --x64`).code !== 0) {
+            console.log(chalk.red('Windows payload build failed!'));
             return;
         }
 
@@ -239,51 +279,50 @@ async function buildAndPrepare() {
             return;
         }
 
-        // Collect Windows Artifacts
+        // Collect Custom Installer Artifact
         const installerReleaseDir = path.join(installerDir, 'release');
         let generatedWindowsExe = null;
         if (await fs.pathExists(installerReleaseDir)) {
             let count = 0;
             const files = await fs.readdir(installerReleaseDir);
             for (const file of files) {
-                if (file.endsWith('.exe') || file.endsWith('.yml') || file.endsWith('.blockmap')) {
+                // We ONLY want the custom installer .exe here. We explicitly ignore yml/blockmap from the Custom Installer
+                // because the auto-updater must use the main app's latest.yml
+                if (file.endsWith('.exe')) {
                     await fs.copy(path.join(installerReleaseDir, file), path.join(uploadPrepDir, file));
-                    console.log(chalk.green(`✓ Collected ${file}`));
+                    console.log(chalk.green(`✓ Collected Custom Installer: ${file}`));
                     if (file.endsWith('.exe')) generatedWindowsExe = file;
                     count++;
                 }
             }
-            if (count === 0) console.log(chalk.yellow('⚠️ No Windows artifacts found to collect.'));
+            if (count === 0) console.log(chalk.yellow('⚠️ No Windows Custom Installer found.'));
         }
 
-        // Generate latest.yml for Windows Update Server if using Portable Installer
-        if (generatedWindowsExe) {
-            const exePath = path.join(uploadPrepDir, generatedWindowsExe);
-            const exeBuffer = await fs.readFile(exePath);
-            const sha512 = crypto.createHash('sha512').update(exeBuffer).digest('base64');
-            const stats = await fs.stat(exePath);
+        // WE DO NOT MANUALLY RE-WRITE LATEST.YML HERE.
+        // The one generated by nsis-web is exactly what the updater needs.
 
-            const latestYmlContent = [
-                `version: ${version}`,
-                `files:`,
-                `  - url: ${generatedWindowsExe}`,
-                `    sha512: ${sha512}`,
-                `    size: ${stats.size}`,
-                `path: ${generatedWindowsExe}`,
-                `sha512: ${sha512}`,
-                `releaseDate: '${new Date().toISOString()}'`
-            ].join('\\n');
-
-            await fs.writeFile(path.join(uploadPrepDir, 'latest.yml'), latestYmlContent);
-            console.log(chalk.green('✓ Generated latest.yml for Auto-Updater'));
-        }
+        // Also: Make sure package.json generation config for GitHub release doesn't break.
+        // The `npm run release` you mentioned with changelog might be tied to your conventional commits.
+        // We'll leave `shell.cd(projectRoot)` intact.
 
         shell.cd(projectRoot);
+    }
+
+    // Copy CHANGELOG.md to artifacts so it can be uploaded to the update server
+    // The app fetches this file to display release notes in the Update Banner
+    const changelogSrc = path.join(projectRoot, 'CHANGELOG.md');
+    if (await fs.pathExists(changelogSrc)) {
+        await fs.copy(changelogSrc, path.join(uploadPrepDir, 'CHANGELOG.md'));
+        console.log(chalk.green('✓ Copied CHANGELOG.md to artifacts (for in-app release notes)'));
     }
 
     console.log(chalk.bold.magenta('\n✅ Build & Preparation Complete!'));
     console.log(chalk.white(`Files are ready in: ${uploadPrepDir}`));
     console.log(chalk.yellow('ACTION REQUIRED: Upload these files to your update server.'));
+
+    if (injectedReleaseNotes) {
+        await fs.remove(path.join(projectRoot, 'release-notes.md')).catch(() => { });
+    }
 }
 
 main().catch(err => console.error(err));

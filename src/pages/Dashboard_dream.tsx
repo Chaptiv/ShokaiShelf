@@ -583,10 +583,17 @@ export default function DashboardDream({
     // Remove from recommendations (optimistic update)
     setData((prev) => {
       if (!prev) return prev;
-      return {
+      const nextData = {
         ...prev,
         recs: prev.recs.filter((r) => r.media.id !== id),
       };
+
+      try {
+        const cacheKey = `dashboard_cache_${prev.viewer.id}`;
+        sessionStorage.setItem(cacheKey, JSON.stringify(nextData));
+      } catch (err) { }
+
+      return nextData;
     });
   }, [data?.recs]);
 
@@ -597,10 +604,17 @@ export default function DashboardDream({
 
     setData((prev) => {
       if (!prev) return prev;
-      return {
+      const nextData = {
         ...prev,
         recs: prev.recs.filter((r: any) => r.media.id !== id),
       };
+
+      try {
+        const cacheKey = `dashboard_cache_${prev.viewer.id}`;
+        sessionStorage.setItem(cacheKey, JSON.stringify(nextData));
+      } catch (err) { }
+
+      return nextData;
     });
   }, []);
 

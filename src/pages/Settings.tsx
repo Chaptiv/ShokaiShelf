@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { changeLanguage, getCurrentLanguage } from "../i18n";
 import { viewerCached, subscribeAuth } from "@api/anilist";
 import {
-  MdSettings, MdPerson, MdDashboard,
+  MdSettings, MdPerson,
   MdTune, MdVideocam, MdNotifications,
   MdLanguage, MdCheck, MdVideogameAsset
 } from "react-icons/md";
@@ -83,103 +83,7 @@ const SettingsCard: React.FC<SettingsCardProps> = ({
   </motion.div>
 );
 
-interface DreamToggleProps {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  label: string;
-  description?: string;
-}
 
-const DreamToggle: React.FC<DreamToggleProps> = ({ checked, onChange, label, description }) => (
-  <label style={{
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 12,
-    cursor: "pointer",
-    padding: "8px 0",
-  }}>
-    <motion.div
-      animate={{
-        background: checked
-          ? `linear-gradient(135deg, ${DREAM.colors.primaryAccent}, #0099cc)`
-          : "rgba(255,255,255,0.1)"
-      }}
-      transition={{ duration: 0.2 }}
-      style={{
-        width: 48,
-        height: 24,
-        borderRadius: 12,
-        padding: 2,
-        position: "relative",
-        flexShrink: 0,
-        marginTop: 2,
-      }}
-      onClick={() => onChange(!checked)}
-    >
-      <motion.div
-        animate={{ x: checked ? 24 : 0 }}
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: 10,
-          background: "white",
-          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-        }}
-      />
-    </motion.div>
-    <div>
-      <div style={{ fontWeight: 600, color: "white" }}>{label}</div>
-      {description && (
-        <div style={{ fontSize: 13, color: DREAM.colors.textMuted, marginTop: 2 }}>
-          {description}
-        </div>
-      )}
-    </div>
-  </label>
-);
-
-interface DreamSliderProps {
-  value: number;
-  onChange: (value: number) => void;
-  min: number;
-  max: number;
-  step?: number;
-  label: string;
-  unit?: string;
-  showValue?: boolean;
-}
-
-const DreamSlider: React.FC<DreamSliderProps> = ({
-  value, onChange, min, max, step = 1, label, unit = "", showValue = true
-}) => (
-  <div style={{ padding: "8px 0" }}>
-    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-      <span style={{ color: DREAM.colors.textMuted, fontSize: 14 }}>{label}</span>
-      {showValue && (
-        <span style={{ fontWeight: 700, color: DREAM.colors.primaryAccent }}>
-          {value}{unit}
-        </span>
-      )}
-    </div>
-    <input
-      type="range"
-      value={value}
-      onChange={(e) => onChange(parseInt(e.target.value))}
-      min={min}
-      max={max}
-      step={step}
-      style={{
-        width: "100%",
-        accentColor: DREAM.colors.primaryAccent,
-        background: "rgba(255,255,255,0.1)",
-        borderRadius: 8,
-        height: 6,
-        cursor: "pointer",
-      }}
-    />
-  </div>
-);
 
 interface DreamSelectProps {
   value: string;
@@ -279,7 +183,7 @@ const DreamButton: React.FC<DreamButtonProps> = ({
 // ============================================================================
 // TYPES
 // ============================================================================
-type TabId = "general" | "account" | "dashboard" | "recommendations" | "scrobbler" | "notifications" | "discord";
+type TabId = "general" | "account" | "recommendations" | "scrobbler" | "notifications" | "discord";
 
 interface TabConfig {
   id: TabId;
@@ -305,17 +209,12 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
 
   // Settings State
   const [activeTab, setActiveTab] = useState<TabId>("general");
-  const [heroAutoPlay, setHeroAutoPlay] = useState(true);
-  const [heroSpeed, setHeroSpeed] = useState(5);
-  const [showScores, setShowScores] = useState(true);
-  const [showProgressBars, setShowProgressBars] = useState(true);
-  const [enableCloudAPI, setEnableCloudAPI] = useState(false);
-  const [currentLang, setCurrentLang] = useState<"de" | "en">(getCurrentLanguage());
+
+  const [currentLang, setCurrentLang] = useState<"de" | "en" | "jp">(getCurrentLanguage());
 
   const TABS: TabConfig[] = [
     { id: "general", labelKey: "settings.tabs.general", Icon: MdSettings, color: DREAM.colors.primaryAccent },
     { id: "account", labelKey: "settings.tabs.account", Icon: MdPerson, color: DREAM.colors.primaryAccent },
-    { id: "dashboard", labelKey: "settings.tabs.dashboard", Icon: MdDashboard, color: DREAM.colors.primaryAccent },
     { id: "recommendations", labelKey: "settings.tabs.recommendations", Icon: MdTune, color: DREAM.colors.secondaryAccent },
     { id: "scrobbler", labelKey: "settings.tabs.scrobbler", Icon: MdVideocam, color: DREAM.colors.success },
     { id: "discord", labelKey: "settings.tabs.discord", Icon: MdVideogameAsset, color: DREAM.colors.secondaryAccent },
@@ -345,20 +244,6 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
         setMe(null);
       }
 
-      const heroAuto = await window.shokai?.store?.get("ui.heroAutoPlay");
-      setHeroAutoPlay(heroAuto !== false);
-
-      const heroSpd = await window.shokai?.store?.get("ui.heroSpeed");
-      setHeroSpeed(typeof heroSpd === "number" ? heroSpd : 5);
-
-      const scores = await window.shokai?.store?.get("ui.showScores");
-      setShowScores(scores !== false);
-
-      const progress = await window.shokai?.store?.get("ui.showProgressBars");
-      setShowProgressBars(progress !== false);
-
-      const cloudApiReq = await window.shokai?.store?.get("app.enableCloudAPI");
-      setEnableCloudAPI(cloudApiReq === true);
 
     } catch (e) {
       logError("[Settings] Load error:", e);
@@ -392,8 +277,8 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
   }
 
   const handleLanguageChange = (lang: string) => {
-    changeLanguage(lang as "de" | "en");
-    setCurrentLang(lang as "de" | "en");
+    changeLanguage(lang as "de" | "en" | "jp");
+    setCurrentLang(lang as "de" | "en" | "jp");
   };
 
   const handleTitleLanguageChange = (lang: string) => {
@@ -536,6 +421,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
                     options={[
                       { value: "de", label: "Deutsch" },
                       { value: "en", label: "English" },
+                      { value: "jp", label: "日本語 (Japanese)" },
                     ]}
                   />
                 </SettingsCard>
@@ -611,15 +497,31 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
                   </div>
 
                   {!authed ? (
-                    <DreamButton
-                      variant="primary"
-                      fullWidth
-                      onClick={async () => {
-                        await window.shokai?.auth?.login();
-                      }}
-                    >
-                      {t("settings.account.loginWithAniList")}
-                    </DreamButton>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <DreamButton
+                        variant="primary"
+                        fullWidth
+                        onClick={async () => {
+                          await window.shokai?.auth?.loginBeta?.();
+                        }}
+                      >
+                        {t("settings.account.loginWithAniList")} (Beta)
+                      </DreamButton>
+                      <div style={{ display: 'flex', alignItems: 'center', margin: '4px 0', opacity: 0.3, width: "100%" }}>
+                        <div style={{ flex: 1, height: 1, background: '#fff' }} />
+                        <span style={{ margin: '0 12px', fontSize: 12, textTransform: 'uppercase' }}>OR</span>
+                        <div style={{ flex: 1, height: 1, background: '#fff' }} />
+                      </div>
+                      <DreamButton
+                        variant="secondary"
+                        fullWidth
+                        onClick={async () => {
+                          await window.shokai?.auth?.login?.();
+                        }}
+                      >
+                        Legacy Login (Advanced)
+                      </DreamButton>
+                    </div>
                   ) : (
                     <div style={{ display: "grid", gap: 16 }}>
                       <DreamButton
@@ -649,7 +551,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
                             variant="warning"
                             onClick={async () => {
                               if (confirm(t("settings.account.switchAccountConfirm"))) {
-                                await window.shokai?.auth?.logout();
+                                await window.shokai?.auth?.logout?.();
                                 window.location.reload();
                               }
                             }}
@@ -661,7 +563,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
                             variant="danger"
                             onClick={async () => {
                               if (confirm(t("settings.account.logoutConfirm"))) {
-                                await window.shokai?.auth?.logout();
+                                await window.shokai?.auth?.logout?.();
                                 window.location.reload();
                               }
                             }}
@@ -673,64 +575,6 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
                     </div>
                   )}
                 </SettingsCard>
-              </div>
-            )}
-
-            {/* Dashboard Tab */}
-            {activeTab === "dashboard" && (
-              <div style={{ display: "grid", gap: 24 }}>
-                <div>
-                  <h1 style={{ margin: "0 0 8px 0", fontSize: 28, fontWeight: 900 }}>
-                    {t("settings.dashboard.title")}
-                  </h1>
-                  <div style={{ color: DREAM.colors.textMuted }}>
-                    {t("settings.dashboard.subtitle")}
-                  </div>
-                </div>
-
-                <SettingsCard title={t("settings.dashboard.heroBanner")} delay={0.1}>
-                  <DreamToggle
-                    checked={heroAutoPlay}
-                    onChange={async (value) => {
-                      setHeroAutoPlay(value);
-                      await saveSetting("ui.heroAutoPlay", value);
-                    }}
-                    label={t("settings.dashboard.autoPlayEnabled")}
-                  />
-
-                  {heroAutoPlay && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      style={{ marginTop: 16 }}
-                    >
-                      <DreamSlider
-                        value={heroSpeed}
-                        onChange={async (value) => {
-                          setHeroSpeed(value);
-                          await saveSetting("ui.heroSpeed", value);
-                        }}
-                        min={3}
-                        max={10}
-                        label={t("settings.dashboard.speed")}
-                        unit="s"
-                      />
-                      <div style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginTop: 4,
-                        fontSize: 12,
-                        color: DREAM.colors.textMuted,
-                      }}>
-                        <span>{t("settings.dashboard.fast")} (3s)</span>
-                        <span>{t("settings.dashboard.slow")} (10s)</span>
-                      </div>
-                    </motion.div>
-                  )}
-                </SettingsCard>
-
-
               </div>
             )}
 

@@ -1,4 +1,4 @@
-// ShokaiShelf Echo - Das ultimative Anime-Rückblick Erlebnis
+// ShokaiShelf Echo - The ultimate Anime review experience
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';

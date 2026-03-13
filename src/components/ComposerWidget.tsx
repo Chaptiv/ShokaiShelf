@@ -42,7 +42,7 @@ export default function ComposerWidget({ onPost }: { onPost: () => void }) {
     >
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
         <img
-          src="https://s4.anilist.co/file/anilistcdn/user/avatar/medium/default.png" // Platzhalter oder echter Avatar
+          src="https://s4.anilist.co/file/anilistcdn/user/avatar/medium/default.png" // Placeholder or real avatar
           style={{ width: 40, height: 40, borderRadius: "50%" }}
         />
         <div style={{ flex: 1 }}>

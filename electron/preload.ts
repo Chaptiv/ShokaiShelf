@@ -32,7 +32,7 @@ contextBridge.exposeInMainWorld('notifications', {
 })
 
 // --------- Enhanced shokai API ---------
-// Erweitere das bestehende shokai API (falls vorhanden)
+// Extend the existing shokai API (if present)
 contextBridge.exposeInMainWorld('shokai', {
   store: {
     get: (key: string) => ipcRenderer.invoke('store:get', key),

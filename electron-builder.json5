@@ -21,7 +21,7 @@
     "icon": "build/icons/icon.ico",
     "target": [
       {
-        "target": "nsis",
+        "target": "nsis-web",
         "arch": ["x64"]
       }
     ],

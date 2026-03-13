@@ -1,5 +1,5 @@
 // ShokaiShelf Echo - Types
-// Das ultimative persönliche Anime-Rückblick Erlebnis
+// The ultimate personal Anime review experience
 
 export type EchoPeriodType = 'monthly' | 'yearly';
 

@@ -38,6 +38,7 @@ export async function getRecommendations(
   const results = await engine.recommend(userName, topK);
   devLog(`[RecEngine] ✅ V3 returned ${results.length} results`);
 
+  // @ts-ignore
   return results.map((r) => ({
     media: r.media,
     score: r.score,

@@ -1,15 +1,15 @@
 // src/components/ScrobblerToast.tsx
-// Toast-Notification für Scrobbler-Erkennungen
+// Toast-Notification for Scrobbler detections
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { searchAnime, type Media, type ScrobblerCandidate } from "@api/anilist";
+import { searchAnime, type Media } from "@api/anilist";
 import tokens from "@shingen/tokens";
 import { MdClose, MdCheck } from "react-icons/md";
 import { useTranslation } from "react-i18next";
 
 interface Props {
-  candidate: ScrobblerCandidate;
+  candidate: any;
   onConfirm: (mediaId: number) => void;
   onDismiss: () => void;
 }
@@ -21,7 +21,7 @@ export default function ScrobblerToast({ candidate, onConfirm, onDismiss }: Prop
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
-    // Suche nach dem Anime basierend auf dem erkannten Titel
+    // Search for the Anime based on the detected title
     setLoading(true);
     searchAnime(candidate.cleanTitle, 5)
       .then(setResults)
@@ -34,7 +34,7 @@ export default function ScrobblerToast({ candidate, onConfirm, onDismiss }: Prop
 
   const handleConfirm = (mediaId: number) => {
     setSelectedId(mediaId);
-    // Kurze Animation bevor wir schließen
+    // Short animation before we close
     setTimeout(() => {
       onConfirm(mediaId);
     }, 300);

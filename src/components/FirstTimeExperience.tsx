@@ -101,8 +101,9 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
         // Skip logic loop (in case multiple steps skipped)
         while (true) {
             let skipped = false;
-            if (next === 1 && !initialState.needsSetup) { next += dir; skipped = true; }
-            if (next === 2 && !initialState.needsLogin) { next += dir; skipped = true; }
+            if (next === 1 && !initialState.needsLogin) { next += dir; skipped = true; }
+            if (next === 1.5) { next += dir; skipped = true; } // Internal step, skip in normal flow
+            if (next === 2) { next += dir; skipped = true; } // WaitLoginStep is internal to legacy path
             if ((next >= 3 && next <= 5) && !initialState.needsColdStart) {
                 // If cold start not needed, jump over all cold start steps
                 next = dir === 1 ? 6 : 2;
@@ -225,8 +226,9 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
                                         transition={{ duration: 0.3 }}
                                         style={{ width: '100%', height: '100%', overflowY: 'auto' }}
                                     >
-                                        {step === 1 && <SetupStep data={setupData} setData={setSetupData} onNext={advance} t={t} />}
-                                        {step === 2 && <LoginStep onNext={advance} t={t} />}
+                                        {step === 1 && <LoginChoiceStep onNext={advance} onAdvanced={() => { setDirection(1); setStep(1.5); }} t={t} />}
+                                        {step === 1.5 && <SetupStep data={setupData} setData={setSetupData} onNext={() => { setDirection(1); setStep(2); }} onBack={() => { setDirection(-1); setStep(1); }} t={t} />}
+                                        {step === 2 && <WaitLoginStep onNext={advance} t={t} />}
                                         {step === 3 && <GenreStep selected={selectedGenres} setSelected={setSelectedGenres} onNext={advance} onBack={back} onSkip={skipColdStart} t={t} />}
                                         {step === 4 && <TagStep selected={selectedTags} setSelected={setSelectedTags} onNext={advance} onBack={back} onSkip={skipColdStart} t={t} />}
                                         {step === 5 && <AnimeStep selected={selectedAnime} setSelected={setSelectedAnime} onNext={advance} onBack={back} onSkip={skipColdStart} t={t} />}
@@ -243,9 +245,9 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SETUP STEP
+// SETUP STEP (Legacy/Advanced)
 // ─────────────────────────────────────────────────────────────────────────────
-function SetupStep({ data, setData, onNext, t }: any) {
+function SetupStep({ data, setData, onNext, onBack, t }: any) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [showHelp, setShowHelp] = useState(false);
@@ -316,7 +318,9 @@ function SetupStep({ data, setData, onNext, t }: any) {
 
                 {error && <div style={{ color: '#ff6b6b', marginTop: 16, fontSize: 13, textAlign: 'center' }}>{error}</div>}
 
-                <div style={{ marginTop: 32 }}>
+
+                <div style={{ marginTop: 32, display: 'flex', gap: 12 }}>
+                    <Button onClick={onBack} secondary>{t('ftue.back')}</Button>
                     <Button onClick={handleSave} loading={saving} fluid primary>{t('setup.saveAndContinue')}</Button>
                 </div>
             </div>
@@ -325,9 +329,73 @@ function SetupStep({ data, setData, onNext, t }: any) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LOGIN STEP
+// LOGIN CHOICE STEP (New Beta Flow)
 // ─────────────────────────────────────────────────────────────────────────────
-function LoginStep({ onNext, t }: any) {
+function LoginChoiceStep({ onNext, onAdvanced, t }: any) {
+    const [waiting, setWaiting] = useState(false);
+
+    const handleBetaLogin = async () => {
+        setWaiting(true);
+        (window as any).shokai.auth.loginBeta();
+    };
+
+    // Listen for auth updates
+    useEffect(() => {
+        if (!waiting) return;
+
+        const off = (window as any).shokai.auth.onUpdated(async () => {
+            const status = await (window as any).shokai.status();
+            if (status.loggedIn) {
+                onNext();
+            }
+        });
+        return () => off && off();
+    }, [waiting, onNext]);
+
+    return (
+        <CenteredLayout title={t('login.connectTitle')} subtitle={t('login.connectDescription')}>
+            <div style={{ width: '100%', maxWidth: 400, textAlign: 'center' }}>
+                {!waiting ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <Button onClick={handleBetaLogin} primary size="large" fluid>
+                            {t('login.signIn')} (Beta)
+                        </Button>
+                        <p style={{ fontSize: 13, opacity: 0.6, marginTop: 4, marginBottom: 4 }}>
+                            No setup required. Fast and easy.
+                        </p>
+
+                        <div style={{ display: 'flex', alignItems: 'center', margin: '16px 0', opacity: 0.3 }}>
+                            <div style={{ flex: 1, height: 1, background: '#fff' }} />
+                            <span style={{ margin: '0 12px', fontSize: 12, textTransform: 'uppercase' }}>OR</span>
+                            <div style={{ flex: 1, height: 1, background: '#fff' }} />
+                        </div>
+
+                        <Button onClick={onAdvanced} secondary fluid>
+                            Legacy Login (Advanced)
+                        </Button>
+                        <p style={{ fontSize: 13, opacity: 0.6, marginTop: 4 }}>
+                            Provide your own AniList API Client ID & Secret limit.
+                        </p>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                        <div className="spinner" style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#00d4ff', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                        <span style={{ opacity: 0.6 }}>{t('ftue.waitingForAuth')}</span>
+                        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                        <button onClick={() => setWaiting(false)} style={{ background: 'transparent', border: 'none', color: '#00d4ff', marginTop: 16, cursor: 'pointer', textDecoration: 'underline' }}>
+                            {t('login.checkAgain')}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </CenteredLayout>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WAIT STEP (For Legacy Flow after Setup)
+// ─────────────────────────────────────────────────────────────────────────────
+function WaitLoginStep({ onNext, t }: any) {
     const [waiting, setWaiting] = useState(false);
 
     const handleLogin = async () => {

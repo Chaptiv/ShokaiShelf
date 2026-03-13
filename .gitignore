@@ -23,6 +23,7 @@ Dokumentation/
 .claude/
 tmp/
 .venv/
+miru-extension/
 
 # Internal Documentation
 *.md

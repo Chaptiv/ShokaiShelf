@@ -1,6 +1,7 @@
 // electron/notificationEngine.ts
 // Notification Engine for new anime episodes
-import { Notification } from 'electron';
+import electron from 'electron';
+const { Notification, nativeImage } = electron;
 import { devLog, devWarn, logError } from './utils/logger.js';
 // ============================================================================
 // NOTIFICATION ENGINE
@@ -232,11 +233,28 @@ export class NotificationEngine {
         const json = await res.json();
         return json?.data ?? null;
     }
-    sendNotification(schedule) {
+    async fetchImageAsNativeImage(url) {
+        try {
+            const resp = await fetch(url);
+            const buffer = await resp.arrayBuffer();
+            return nativeImage.createFromBuffer(Buffer.from(buffer));
+        } catch {
+            return undefined;
+        }
+    }
+
+    async sendNotification(schedule) {
         const title = schedule.media.title.english || schedule.media.title.romaji || 'New Episode';
+
+        let icon;
+        if (schedule.media.coverImage?.large) {
+            icon = await this.fetchImageAsNativeImage(schedule.media.coverImage.large);
+        }
+
         const notification = new Notification({
             title: title + ' - Episode ' + schedule.episode,
             body: 'Neue Episode ist verfügbar!',
+            icon: icon
         });
         notification.show();
         devLog('[Notifications] Sent: ' + title + ' - Episode ' + schedule.episode);

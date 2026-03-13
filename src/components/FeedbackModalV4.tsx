@@ -395,7 +395,7 @@ export function ProfileInsightsPanel({ insights, onClose }: ProfileInsightsPanel
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2 style={{ margin: 0, fontSize: 18, color: 'white' }}>{t('profile.title')}</h2>
+        <h2 style={{ margin: 0, fontSize: 18, color: 'white' }}>{t('profileInsights.title')}</h2>
         <button
           onClick={onClose}
           style={{
@@ -407,14 +407,14 @@ export function ProfileInsightsPanel({ insights, onClose }: ProfileInsightsPanel
             cursor: 'pointer'
           }}
         >
-          {t('profile.close')}
+          {t('common.close')}
         </button>
       </div>
 
       {/* Confidence Meter */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: 13 }}>{t('profile.confidence')}</span>
+          <span style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: 13 }}>{t('profileInsights.confidence')}</span>
           <span style={{ color: 'white', fontSize: 13, fontWeight: 600 }}>{formatPercent(insights.confidenceLevel)}</span>
         </div>
         <div style={{ height: 6, background: 'rgba(255, 255, 255, 0.1)', borderRadius: 3, overflow: 'hidden' }}>
@@ -428,23 +428,23 @@ export function ProfileInsightsPanel({ insights, onClose }: ProfileInsightsPanel
 
       {/* Binge Profile */}
       <div style={{ marginBottom: 20, padding: 16, background: 'rgba(255, 255, 255, 0.05)', borderRadius: 12 }}>
-        <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.5)', marginBottom: 4 }}>{t('profile.watchingStyle')}</div>
-        <div style={{ fontSize: 18, fontWeight: 600, color: 'white' }}>{insights.bingeProfile}</div>
-        <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)' }}>{insights.bingeVelocity.toFixed(1)} {t('profile.episodesPerDay')}</div>
+        <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.5)', marginBottom: 4 }}>{t('profileInsights.watchingStyle')}</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: 'white' }}>{t(`profileInsights.watchingStyles.${insights.bingeProfile}`, insights.bingeProfile)}</div>
+        <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)' }}>{t('profileInsights.episodesPerDay', { value: insights.bingeVelocity.toFixed(1) })}</div>
       </div>
 
       {/* Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-        <StatCard label={t('profile.completionRate')} value={`${insights.completionRate}%`} color="#22c55e" />
-        <StatCard label={t('profile.dropRate')} value={`${insights.dropRate}%`} color="#ef4444" />
-        <StatCard label={t('profile.totalFeedback')} value={insights.totalFeedback.toString()} color="#00d4ff" />
-        <StatCard label={t('profile.clustersFound')} value={insights.clusterCount.toString()} color="#a855f7" />
+        <StatCard label={t('profileInsights.completionRate')} value={`${insights.completionRate}%`} color="#22c55e" />
+        <StatCard label={t('profileInsights.dropRate')} value={`${insights.dropRate}%`} color="#ef4444" />
+        <StatCard label={t('profileInsights.totalFeedback')} value={insights.totalFeedback.toString()} color="#00d4ff" />
+        <StatCard label={t('profileInsights.clustersFound')} value={insights.clusterCount.toString()} color="#a855f7" />
       </div>
 
       {/* Top Clusters */}
       {insights.topClusters.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)', marginBottom: 8 }}>{t('profile.preferredVibes')}</div>
+          <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)', marginBottom: 8 }}>{t('profileInsights.preferredVibes')}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {insights.topClusters.map(cluster => (
               <span
@@ -468,7 +468,7 @@ export function ProfileInsightsPanel({ insights, onClose }: ProfileInsightsPanel
       {/* Avoided Clusters */}
       {insights.avoidedClusters.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)', marginBottom: 8 }}>{t('profile.avoidedVibes')}</div>
+          <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)', marginBottom: 8 }}>{t('profileInsights.avoidedVibes')}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {insights.avoidedClusters.map(cluster => (
               <span
@@ -491,16 +491,16 @@ export function ProfileInsightsPanel({ insights, onClose }: ProfileInsightsPanel
 
       {/* Tolerances */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)', marginBottom: 12 }}>{t('profile.tolerances')}</div>
-        <ToleranceBar label={t('profile.classicAnime')} value={insights.tolerances.oldAnime} />
-        <ToleranceBar label={t('profile.longSeries')} value={insights.tolerances.longSeries} />
-        <ToleranceBar label={t('profile.slowPaced')} value={insights.tolerances.slowPace} />
+        <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)', marginBottom: 12 }}>{t('profileInsights.tolerances')}</div>
+        <ToleranceBar label={t('profileInsights.tolerance.oldAnime')} value={insights.tolerances.oldAnime} />
+        <ToleranceBar label={t('profileInsights.tolerance.longSeries')} value={insights.tolerances.longSeries} />
+        <ToleranceBar label={t('profileInsights.tolerance.slowPace')} value={insights.tolerances.slowPace} />
       </div>
 
       {/* Weight Insights */}
       {insights.weightInsights.length > 0 && (
         <div>
-          <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)', marginBottom: 8 }}>{t('profile.insights')}</div>
+          <div style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.6)', marginBottom: 8 }}>{t('profileInsights.insights')}</div>
           {insights.weightInsights.map((insight, i) => (
             <p key={i} style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.8)', margin: '0 0 8px 0' }}>
               • {insight}

@@ -12,7 +12,7 @@ import { ShokaiErrorFactory } from './ShokaiErrors.js'
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// Initialisiere Stores
+// Initialize Stores
 const store = new Store()
 const notificationStore = new NotificationStore()
 const offlineStore = new OfflineStore()
@@ -84,18 +84,18 @@ app.on('activate', () => {
    ======================================== */
 
 function setupNotifications() {
-  // Lade gespeicherte Config
+  // Load saved Config
   const config = store.get('notifications.config', {
-    enabled: false, // Default: Aus
-    checkInterval: 30, // 30 Minuten
-    lookbackWindow: 24, // 24 Stunden
+    enabled: false, // Default: Off
+    checkInterval: 30, // 30 minutes
+    lookbackWindow: 24, // 24 hours
   })
 
-  // Initialisiere Engine
+  // Initialize Engine
   notificationEngine = new NotificationEngine(store)
 
-  // Starte Engine wenn enabled
-  if (config.enabled) {
+  // Start Engine if enabled
+  if ((config as any).enabled) {
     notificationEngine.start()
     console.log('[Main] Notification engine started')
   }
@@ -124,12 +124,12 @@ ipcMain.handle('notifications:updateConfig', async (_event, config) => {
   }
 })
 
-// Manueller Check (für Testing/User-Button)
+// Manual check (for testing/user button)
 ipcMain.handle('notifications:checkNow', async () => {
   if (!notificationEngine) return { success: false, error: 'Engine not initialized' }
 
   try {
-    // Hole Token und User ID
+    // Fetch token and user ID
     const anilistData = store.get('anilist') as any
     const token = anilistData?.access_token
     const userId = anilistData?.user_id
@@ -185,7 +185,7 @@ ipcMain.handle('achievement:notify', async (_event, achievement: { name: string;
   }
 })
 
-// Store access (für Renderer Process)
+// Store access (for Renderer Process)
 ipcMain.handle('store:get', async (_event, key) => {
   return store.get(key)
 })
@@ -472,7 +472,7 @@ app.whenReady().then(() => {
   setupMiruBridge()
 })
 
-// Cleanup beim Beenden
+// Cleanup on exit
 app.on('before-quit', () => {
   if (notificationEngine) {
     notificationEngine.stop()

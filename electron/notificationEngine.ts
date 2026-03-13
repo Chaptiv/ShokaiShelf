@@ -1,7 +1,8 @@
 // electron/notificationEngine.ts
 // Notification Engine for new anime episodes
 
-import { Notification, nativeImage } from 'electron';
+import electron from 'electron';
+const { Notification, nativeImage } = electron;
 import type Store from 'electron-store';
 import { ShokaiErrorFactory } from './ShokaiErrors.js';
 

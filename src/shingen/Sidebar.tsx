@@ -15,9 +15,9 @@ type Props = {
   hideCharacters?: boolean;
 };
 
-const RAIL_W = 72;       // so schmal wie praktikabel
-const ICO = 26;          // Icon-Größe
-const AVATAR = 52;       // größerer Avatar
+const RAIL_W = 72;       // as narrow as practical
+const ICO = 26;          // Icon size
+const AVATAR = 52;       // larger avatar
 const ACCENT = "#00d4ff";
 
 export default function Sidebar({ page, setPage, authed, username, avatar }: Props) {
@@ -27,12 +27,12 @@ export default function Sidebar({ page, setPage, authed, username, avatar }: Pro
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const justOpenedRef = useRef(false);
 
-  // Menü schließen bei Page-Wechsel
+  // Close menu on page change
   useEffect(() => {
     setMenuOpen(false);
   }, [page]);
 
-  // Menü außerhalb schließen
+  // Close menu outside
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       const el = e.target as HTMLElement;
@@ -79,7 +79,7 @@ export default function Sidebar({ page, setPage, authed, username, avatar }: Pro
         position: "relative",
       }}
     >
-      {/* Avatar – ohne Box, nur Klickfläche */}
+      {/* Avatar - without box, clickable area only */}
       <div style={{ position: "relative", width: "100%", display: "flex", justifyContent: "center", marginTop: 2 }}>
         <button
           ref={buttonRef}
@@ -124,12 +124,12 @@ export default function Sidebar({ page, setPage, authed, username, avatar }: Pro
           )}
         </button>
 
-        {/* Dropdown – klappt nach rechts auf */}
+        {/* Dropdown - opens to the right */}
         {menuOpen && (
           <div
             style={{
               position: "absolute",
-              left: RAIL_W - 8,           // rechts neben der Rail
+              left: RAIL_W - 8,           // to the right of the rail
               top: 0,
               background: "linear-gradient(135deg, #0f1722 0%, #0a1018 100%)",
               border: "1px solid rgba(0,212,255,0.15)",
@@ -165,7 +165,7 @@ export default function Sidebar({ page, setPage, authed, username, avatar }: Pro
         )}
       </div>
 
-      {/* NAV – nur Icons, weiß, minimal; KEIN „Einstellungen“-Eintrag */}
+      {/* NAV - only icons, white, minimal; NO "Settings" entry */}
       <nav style={{ display: "grid", gap: 8, justifyItems: "center", marginTop: 8 }}>
         <RailBtn
           active={page === "home"}

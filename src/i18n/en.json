@@ -675,7 +675,15 @@
       "longSeries": "Long Series",
       "slowPace": "Slow-Paced Shows"
     },
-    "insights": "Insights"
+    "insights": "Insights",
+    "watchingStyles": {
+      "powerBinger": "Power Binger",
+      "heavyWatcher": "Heavy Watcher",
+      "steadyViewer": "Steady Viewer",
+      "casualWatcher": "Casual Watcher",
+      "slowBurner": "Slow Burner",
+      "unknown": "Unknown"
+    }
   },
   "insight": {
     "stats": "Statistics",
@@ -1059,5 +1067,37 @@
     "noAnimeDetected": "No anime detected",
     "error": "Error: {{message}}",
     "wait": "Wait... {{count}}..."
+  },
+  "account": {
+    "tokenExpiresIn": "Token expires in {{duration}}",
+    "tokenExpired": "Token expired",
+    "tokenActive": "Token active",
+    "pleaseConnect": "Please connect AniList account",
+    "refreshToken": "Refresh token"
+  },
+  "discord": {
+    "disabled": "Disabled",
+    "enableRPC": "Enable Rich Presence",
+    "rpcDesc": "Show your current anime status in Discord",
+    "currentActivity": "Current Activity",
+    "deleteActivity": "Delete Activity",
+    "privacyWarning": "Others can see your ShokaiShelf activity"
+  },
+  "finetuning": {
+    "loading": "Loading...",
+    "helpText": "These settings help the engine create better recommendations for you.",
+    "reloadText": "Changes take effect on the next dashboard reload.",
+    "likedGenres": "Choose genres you particularly like",
+    "dislikedGenres": "Genres to avoid",
+    "selectedCount": "{{count}} selected anime"
+  },
+  "header": {
+    "basedOnHistory": "Based on your history",
+    "recommendationOfDay": "Recommendation of the day"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "statusActive": "Active (checks every {{interval}}s)",
+    "statusInactive": "Inactive"
   }
 }

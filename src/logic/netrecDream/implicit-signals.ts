@@ -547,11 +547,11 @@ export function getDropStats(entries: MediaListEntry[]): {
  * Get binge profile description
  */
 export function getBingeProfile(velocity: number): string {
-  if (velocity >= 8) return 'Power Binger';
-  if (velocity >= 5) return 'Heavy Watcher';
-  if (velocity >= 3) return 'Steady Viewer';
-  if (velocity >= 1.5) return 'Casual Watcher';
-  return 'Slow Burner';
+  if (velocity >= 8) return 'powerBinger';
+  if (velocity >= 5) return 'heavyWatcher';
+  if (velocity >= 3) return 'steadyViewer';
+  if (velocity >= 1.5) return 'casualWatcher';
+  return 'slowBurner';
 }
 
 /**

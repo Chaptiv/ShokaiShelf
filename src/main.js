@@ -1,4 +1,4 @@
-// electron/main.js (ESM, ohne Tag-Scraper)
+// electron/main.js (ESM, without Tag-Scraper)
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import http from "node:http";
 import path from "node:path";
@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const store = new Store();
 
-// Default-Werte – kannst du gerne leeren, wenn du willst
+// Default values - feel free to empty if you want
 const DEFAULT_CLIENT_ID = process.env.ANILIST_CLIENT_ID || "";
 const DEFAULT_CLIENT_SECRET = process.env.ANILIST_CLIENT_SECRET || "";
 const DEFAULT_REDIRECT_URI =
@@ -30,7 +30,7 @@ let authHttpServer = null;
 /* --------------------- WINDOW --------------------- */
 async function createWindow() {
   const preloadPath = path.join(__dirname, "preload.cjs");
-  
+
   console.log("Preload path:", preloadPath);
 
   mainWindow = new BrowserWindow({

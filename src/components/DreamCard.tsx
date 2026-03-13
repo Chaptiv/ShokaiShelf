@@ -354,7 +354,9 @@ export default function DreamCard({
             gap: "12px",
             padding: "20px",
           }}>
-            <TvIcon style={{ fontSize: "48px", color: "rgba(0, 212, 255, 0.4)" }} />
+            <span style={{ fontSize: "48px", color: "rgba(0, 212, 255, 0.4)", display: "flex" }}>
+              <TvIcon />
+            </span>
             <div style={{
               fontSize: "12px",
               color: "rgba(255, 255, 255, 0.5)",

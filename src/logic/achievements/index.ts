@@ -1,3 +1,5 @@
+import { logError } from "@utils/logger";
+
 // Achievement System - Main Entry Point
 export * from './achievement-types';
 export * from './achievement-definitions';

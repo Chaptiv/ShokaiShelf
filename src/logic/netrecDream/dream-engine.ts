@@ -124,7 +124,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
       // Initialize new Dream profile
       this.dreamProfile = await initializeDreamProfile(
         userName,
-        v3Profile.entries,
+        v3Profile.entries as any,
         existingFeedback
       );
 
@@ -187,12 +187,13 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
         studioMatch: rawFeatures.studioMatch ? 1 : 0,
         formatMatch: rawFeatures.formatMatch ? 1 : 0,
         sourceMatch: rawFeatures.sourceMatch ? 1 : 0,
-        sequelPotential: rawFeatures.hasSequel ? 1 : 0
+        sequelPotential: rawFeatures.hasSequel ? 1 : 0,
+        isDisliked: rawFeatures.isDisliked
       };
 
       // Calculate Dream score breakdown
       const dreamBreakdown = calculateDreamScore(
-        candidate,
+        candidate as any,
         this.dreamProfile!,
         aggregatedFeatures
       );
@@ -228,7 +229,7 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
       // Generate reasons
       scoredCandidate.reasons = [
         ...generateReasons(scoredCandidate, profile.entries),
-        ...generateDreamReasons(candidate, this.dreamProfile!, dreamBreakdown)
+        ...generateDreamReasons(candidate as any, this.dreamProfile!, dreamBreakdown)
       ];
 
       // Deduplicate reasons
@@ -374,12 +375,12 @@ export class AnimeNetRecDream extends AnimeNetRecV3 {
     const profile = this.dreamProfile;
 
     // Import getBingeProfile from implicit-signals
-    let bingeProfileName = 'Unknown';
+    let bingeProfileName = 'unknown';
     try {
       const { getBingeProfile } = require('./implicit-signals');
       bingeProfileName = getBingeProfile(profile.metrics.bingeVelocity);
     } catch {
-      // Fallback
+      // Fallback to 'unknown' key
     }
 
     // Calculate weight changes
@@ -567,7 +568,7 @@ export async function getSmartRecommendations(
 // =============================================================================
 
 // Override to expose loadUserProfile
-AnimeNetRecDream.prototype['loadUserProfile'] = async function(userName: string) {
+AnimeNetRecDream.prototype['loadUserProfile'] = async function (userName: string) {
   // Re-implement to have access in Dream engine
   const { fetchUserLibrary, fetchUserStats } = await import('../netrecV3/queries');
   const { loadUserFeedbacks, loadUserInteractions } = await import('../netrecV3/feedback');
@@ -581,7 +582,7 @@ AnimeNetRecDream.prototype['loadUserProfile'] = async function(userName: string)
   try {
     const { getPreferences } = await import('../preferences-store');
     userPrefs = await getPreferences();
-  } catch {}
+  } catch { }
 
   return {
     userId: userName,
@@ -603,15 +604,19 @@ AnimeNetRecDream.prototype['loadUserProfile'] = async function(userName: string)
 };
 
 // Override to expose generateCandidates
-AnimeNetRecDream.prototype['generateCandidates'] = async function(profile: any) {
+AnimeNetRecDream.prototype['generateCandidates'] = async function (profile: any) {
   const { fetchTrending, fetchRecommendations } = await import('../netrecV3/queries');
 
   const candidates: any[] = [];
 
   // Generate CF candidates (simplified)
-  const seeds = profile.entries
-    .filter((e: any) => e.status === 'COMPLETED' && (e.score || 0) >= 7)
-    .slice(0, 10)
+  const completedEntries = profile.entries
+    .filter((e: any) => e.status === 'COMPLETED' && (e.score || 0) >= 7);
+
+  // Shuffle to ensure diversity in seeds
+  const seeds = completedEntries
+    .sort(() => 0.5 - Math.random())
+    .slice(0, 15)
     .map((e: any) => e.media.id);
 
   if (seeds.length > 0) {
@@ -639,7 +644,8 @@ AnimeNetRecDream.prototype['generateCandidates'] = async function(profile: any) 
   // Generate relations candidates
   const highScored = profile.entries
     .filter((e: any) => e.status === 'COMPLETED' && (e.score || 0) >= 8)
-    .slice(0, 10);
+    .sort(() => 0.5 - Math.random()) // Shuffle for diverse relation exploration
+    .slice(0, 15);
 
   for (const entry of highScored) {
     const relations = entry.media?.relations?.edges || [];
@@ -658,7 +664,7 @@ AnimeNetRecDream.prototype['generateCandidates'] = async function(profile: any) 
 };
 
 // Override to expose scoreCandidates
-AnimeNetRecDream.prototype['scoreCandidates'] = function(candidates: any[], profile: any) {
+AnimeNetRecDream.prototype['scoreCandidates'] = function (candidates: any[], profile: any) {
   return candidates.map((candidate: any) => {
     const features = buildFeatures(candidate.media, profile);
 

@@ -223,19 +223,7 @@ interface NotificationHistoryItem {
   title: string;
 }
 
-declare global {
-  interface Window {
-    shokai?: {
-      notifications?: {
-        getConfig: () => Promise<{ running: boolean; config: NotificationConfig } | null>;
-        updateConfig: (config: Partial<NotificationConfig>) => Promise<{ success: boolean; error?: string }>;
-        checkNow: () => Promise<{ success: boolean; error?: string }>;
-        getHistory: () => Promise<NotificationHistoryItem[]>;
-        test: () => Promise<{ success: boolean; error?: string }>;
-      };
-    };
-  }
-}
+
 
 // ============================================================================
 // MAIN COMPONENT
@@ -274,7 +262,11 @@ export default function Settings_Notifications() {
   async function loadHistory() {
     try {
       const hist = await window.shokai?.notifications?.getHistory();
-      setHistory(hist || []);
+      if (Array.isArray(hist)) {
+        setHistory(hist);
+      } else {
+        setHistory([]);
+      }
     } catch (e) {
       logError("[Notifications] Load history failed:", e);
     }

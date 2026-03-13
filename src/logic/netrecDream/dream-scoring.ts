@@ -50,6 +50,7 @@ interface Features {
   formatMatch: number;
   sourceMatch: number;
   sequelPotential: number;
+  isDisliked?: boolean;
 }
 
 interface Candidate {
@@ -86,6 +87,11 @@ export function calculateDreamScore(
 
   // 6. Calculate raw score (can be > 1.0!)
   let rawScore = baseScore * vetoMultiplier * clusterBoost * behavioralModifier * toleranceAdjustment;
+
+  // HARD VETO: User disliked anime
+  if (features.isDisliked) {
+    rawScore = 0;
+  }
 
   // 7. SOFT-CAP SYSTEM
   // Goal: 100% should be almost impossible, so you can see differences

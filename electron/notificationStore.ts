@@ -1,7 +1,7 @@
 // electron/notificationStore.ts
-// SQLite Store für Notification-History
-// - Verhindert Duplikate
-// - Speichert wann welche Episode benachrichtigt wurde
+// SQLite Store for Notification History
+// - Prevents duplicates
+// - Stores when which episode was notified
 
 import path from "node:path";
 import { app } from "electron";
@@ -29,7 +29,7 @@ export class NotificationStore {
   }
 
   private init() {
-    // Tabelle für bereits gesendete Notifications
+    // Table for already sent notifications
     this.db
       .prepare(
         `CREATE TABLE IF NOT EXISTS notification_history (
@@ -45,7 +45,7 @@ export class NotificationStore {
       )
       .run();
 
-    // Index für schnellere Queries
+    // Index for faster queries
     this.db
       .prepare(
         `CREATE INDEX IF NOT EXISTS idx_user_media
@@ -55,7 +55,7 @@ export class NotificationStore {
   }
 
   /**
-   * Prüft ob eine Notification bereits gesendet wurde
+   * Checks if a notification was already sent
    */
   wasNotified(mediaId: number, episode: number, userId: string): boolean {
     const stmt = this.db.prepare(
@@ -68,7 +68,7 @@ export class NotificationStore {
   }
 
   /**
-   * Speichert eine gesendete Notification
+   * Saves a sent notification
    */
   markAsNotified(record: NotificationRecord): void {
     const stmt = this.db.prepare(
@@ -87,7 +87,7 @@ export class NotificationStore {
   }
 
   /**
-   * Lädt Notification-Historie für einen User
+   * Loads notification history for a user
    */
   getHistory(userId: string, limit = 50): NotificationRecord[] {
     const stmt = this.db.prepare(
@@ -108,7 +108,7 @@ export class NotificationStore {
   }
 
   /**
-   * Löscht alte Einträge (älter als X Tage)
+   * Deletes old entries (older than X days)
    */
   cleanup(daysOld = 30): number {
     const cutoff = Date.now() - daysOld * 24 * 60 * 60 * 1000;
@@ -120,7 +120,7 @@ export class NotificationStore {
   }
 
   /**
-   * Schließt die Datenbank
+   * Closes the database
    */
   close(): void {
     this.db.close();

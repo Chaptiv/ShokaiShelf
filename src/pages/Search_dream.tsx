@@ -345,7 +345,7 @@ export default function SearchDream() {
     if (topGenres.length === 0) return [];
     const resultIds = new Set(results.map((r) => r.id));
     return trendingPool.current
-      .filter((anime) => !resultIds.has(anime.id) && genreOverlap(anime, topGenres) > 0)
+      .filter((anime) => !resultIds.has(anime.id) && genreOverlap(anime as any, topGenres) > 0)
       .slice(0, 12);
   }, [results]);
 

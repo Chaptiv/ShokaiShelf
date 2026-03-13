@@ -7,6 +7,7 @@
  * - Preferred tags
  * - Anime selections
  */
+import { logError, devLog } from "@utils/logger";
 
 export interface UserPreferences {
   favoriteGenres: string[];

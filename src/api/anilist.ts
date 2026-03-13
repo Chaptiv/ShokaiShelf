@@ -1,10 +1,10 @@
 // src/api/anilist.ts
-// Stabiles AniList-API-Layer für Renderer (Browser-Context)
-// - 30 Min Token-RAM-Cache
-// - Liest Token aus anilist.access_token ODER aus anilist{access_token,...} (Kompatibel)
-// - Auto-Refresh kurz vor Ablauf via window.shokai.auth.refresh()
-// - Öffentliche Queries ohne Token erlaubt; usergebundene Endpunkte nur mit Token
-// - subscribeAuth löst lokale Cache-Invalidierung aus
+// Stable AniList-API-Layer for Renderer (Browser-Context)
+// - 30 min Token-RAM-Cache
+// - Reads token from anilist.access_token OR from anilist{access_token,...} (Compatible)
+// - Auto-Refresh shortly before expiration via window.shokai.auth.refresh()
+// - Public queries allowed without token; user-bound endpoints only with token
+// - subscribeAuth triggers local cache invalidation
 
 import { devLog, devWarn, logError } from "@utils/logger";
 import { rateLimiter } from "../logic/netrecV3/cache";
@@ -56,64 +56,53 @@ export type ActivityEntry = {
 };
 
 declare global {
-  interface Window {
-    shokai?: {
-      store: {
-        get: (k: string) => Promise<any>;
-        set: (k: string, v: any) => Promise<void>;
-        delete?: (k: string) => Promise<void>;
-      };
-      auth?: {
-        login?: () => Promise<void>;
-        logout?: () => Promise<void>;
-        refresh?: () => Promise<string>;
-        onUpdated?: (fn: () => void) => () => void;
-      };
-      notifications?: {
-        getConfig: () => Promise<{
-          running: boolean;
-          config: {
-            enabled: boolean;
-            checkInterval: number;
-            lookbackWindow: number;
-          };
-        } | null>;
-        updateConfig: (config: {
-          enabled?: boolean;
-          checkInterval?: number;
-          lookbackWindow?: number;
-        }) => Promise<{ success: boolean; error?: string }>;
-        checkNow: () => Promise<{ success: boolean; message?: string; error?: string }>;
-        getHistory: () => Promise<{
-          success: boolean;
-          history?: Array<{
-            mediaId: number;
-            episode: number;
-            airingAt: number;
-            notifiedAt: number;
-            title?: string;
-          }>;
-          error?: string;
-        }>;
-        test: () => Promise<any>;
-      };
-      status?: () => Promise<any>;
-      discord?: {
-        getStatus: () => Promise<any>;
-        setEnabled: (enabled: boolean) => Promise<any>;
-        setActivity: (activity: any) => Promise<any>;
-        clearActivity: () => Promise<any>;
-      };
-      scrobbler?: {
-        getStatus: () => Promise<any>;
-        updateConfig: (config: any) => Promise<any>;
-        debugMatch: () => Promise<any>;
-        removeAlias: (alias: string) => Promise<any>;
-      };
-      app?: {
-        notify: (options: { title: string; body: string }) => void;
-      };
+  interface ShokaiAPI {
+    store?: {
+      get: (k: string) => Promise<any>;
+      set: (k: string, v: any) => Promise<void>;
+      delete?: (k: string) => Promise<void>;
     };
+    auth?: {
+      login?: () => Promise<void>;
+      loginBeta?: () => Promise<void>;
+      logout?: () => Promise<void>;
+      refresh?: () => Promise<string>;
+      onUpdated?: (fn: () => void) => () => void;
+    };
+    notifications?: {
+      getConfig: () => Promise<any>;
+      updateConfig: (config: any) => Promise<any>;
+      checkNow: () => Promise<any>;
+      getHistory: () => Promise<any>;
+      test: () => Promise<any>;
+    };
+    status?: () => Promise<any>;
+    discord?: {
+      getStatus: () => Promise<any>;
+      setEnabled: (enabled: boolean) => Promise<any>;
+      setActivity: (activity: any) => Promise<any>;
+      clearActivity: () => Promise<any>;
+    };
+    scrobbler?: {
+      getStatus: () => Promise<any>;
+      updateConfig: (config: any) => Promise<any>;
+      debugMatch: () => Promise<any>;
+      removeAlias: (alias: string) => Promise<any>;
+    };
+    app?: {
+      notify: (options: { title: string; body: string }) => void;
+      needsSetup?: () => Promise<boolean>;
+    };
+    setup?: {
+      save: (cfg: any) => Promise<any>;
+    };
+    achievements?: {
+      notify: (achievement: any) => Promise<any>;
+    };
+  }
+
+  interface Window {
+    shokai?: ShokaiAPI;
   }
 }
 
@@ -123,13 +112,13 @@ declare global {
 /* ───────────────── User Notification ───────────────── */
 
 let lastNotificationTime = 0;
-const NOTIFICATION_THROTTLE = 10_000; // Max 1 Notification alle 10 Sekunden
+const NOTIFICATION_THROTTLE = 10_000; // Max 1 Notification every 10 seconds
 
 // This is still useful as a global hook to warn the user visually
 export function notifyRateLimit(waitMs: number): void {
   const now = Date.now();
 
-  // Throttle Notifications (nicht spammen)
+  // Throttle Notifications (don't spam)
   if (now - lastNotificationTime < NOTIFICATION_THROTTLE) {
     return;
   }
@@ -149,7 +138,7 @@ export function notifyRateLimit(waitMs: number): void {
     });
   }
 
-  // Dispatch custom event für UI Toast
+  // Dispatch custom event for UI Toast
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('shokai:rate-limit', {
       detail: { waitMs, message }
@@ -159,16 +148,16 @@ export function notifyRateLimit(waitMs: number): void {
 
 /* ───────────────── Caches ───────────────── */
 
-const USERLIST_CACHE_TTL = 5 * 60 * 1000; // 5 Minuten
+const USERLIST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 let userListCache: { userId: number; data: any; at: number } | null = null;
 
 /* ───────────────── Token-Handling ───────────────── */
 
-const TOKEN_RAM_TTL = 30 * 60 * 1000; // 30 Minuten
+const TOKEN_RAM_TTL = 30 * 60 * 1000; // 30 minutes
 let tokenCache: { token: string | null; at: number } = { token: null, at: 0 };
 let cachedViewer: any | null = null;
 
-// liest sowohl anilist.access_token als auch anilist{access_token,...}
+// reads both anilist.access_token and anilist{access_token,...}
 export async function getAccessToken(): Promise<string | null> {
   const now = Date.now();
 
@@ -180,34 +169,34 @@ export async function getAccessToken(): Promise<string | null> {
   // 1) Dot-Path
   let access = (await window.shokai?.store?.get("anilist.access_token")) || "";
 
-  // 2) Objekt-Fallback
+  // Object-Fallback
   if (!access) {
     const obj = (await window.shokai?.store?.get("anilist")) || {};
     access = obj?.access_token || "";
   }
 
-  // Ablaufzeit lesen (beide Pfade)
+  // Read expiration time (both paths)
   let exp = (await window.shokai?.store?.get("anilist.expires_at")) || 0;
   if (!exp) {
     const obj = (await window.shokai?.store?.get("anilist")) || {};
     exp = obj?.expires_at || 0;
   }
 
-  // Refresh-Token lesen (beide Pfade)
+  // Read refresh token (both paths)
   let refresh = (await window.shokai?.store?.get("anilist.refresh_token")) || "";
   if (!refresh) {
     const obj = (await window.shokai?.store?.get("anilist")) || {};
     refresh = obj?.refresh_token || "";
   }
 
-  // Kurz vor Ablauf -> refresh
+  // Shortly before expiration -> refresh
   if (access && exp && now > exp - 30_000 && refresh && window.shokai?.auth?.refresh) {
     try {
       const newToken = await window.shokai.auth.refresh();
       tokenCache = { token: newToken, at: Date.now() };
       return newToken;
     } catch {
-      // Fallback: nutze alten Token, falls Endpunkte noch akzeptieren
+      // Fallback: use old token if endpoints still accept it
     }
   }
 
@@ -222,11 +211,11 @@ export async function isAuthenticated(): Promise<boolean> {
 
 export function subscribeAuth(cb: () => void) {
   const off = window.shokai?.auth?.onUpdated?.(() => {
-    // lokale Caches invalidieren
+    // Invalidate local caches
     tokenCache = { token: null, at: 0 };
     cachedViewer = null;
     userListCache = null;
-    // evtl. weitere Memory-Caches leeren
+    // empty potentially other memory caches
     trendingCache = { at: 0, data: [] };
     searchCache.clear();
 
@@ -238,7 +227,7 @@ export function subscribeAuth(cb: () => void) {
 /* ───────────────── GQL-Helper ───────────────── */
 
 async function gql<T = any>(query: string, variables?: Record<string, any>, requireAuth = false): Promise<T> {
-  // Rate Limiter: Warten bevor Request abgeschickt wird (using unified rateLimiter from cache.ts)
+  // Rate limiter: wait before request is sent (using unified rateLimiter from cache.ts)
   await rateLimiter.checkLimit();
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -247,7 +236,7 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   } else if (requireAuth) {
-    // Harte Absicherung für usergebundene Endpunkte
+    // Hard safeguard for user-bound endpoints
     throw new Error("Not authenticated");
   }
 
@@ -268,11 +257,11 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
       if (retrySec) notifyRateLimit(retrySec * 1000);
       else notifyRateLimit(60000);
 
-      // Einmal retry nach Backoff
+      // Retry once after backoff
       await rateLimiter.checkLimit();
       return gql<T>(query, variables, requireAuth);
     }
-    // 401/403 -> lokalen Token-Cache invalidieren, damit UI korrekt reagiert
+    // 401/403 -> invalidate local token cache so UI reacts correctly
     if (res.status === 401 || res.status === 403) {
       tokenCache = { token: null, at: 0 };
       const authError = new Error(`Authentication failed (${res.status})`);
@@ -280,7 +269,7 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
       (authError as any).status = res.status;
       throw authError;
     }
-    // Andere HTTP Fehler
+    // Other HTTP errors
     const httpError = new Error(`AniList API Error (HTTP ${res.status})`);
     (httpError as any).code = 'HTTP_ERROR';
     (httpError as any).status = res.status;
@@ -290,7 +279,7 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
   const json = await res.json();
   if (json.errors) {
     const msg = json.errors[0]?.message || "AniList error";
-    // Bei auth-bezogenen Fehlern ebenfalls Cache invalidieren
+    // Also invalidate cache for auth-related errors
     if (/auth|token|unauthorized/i.test(msg)) {
       tokenCache = { token: null, at: 0 };
     }
@@ -299,10 +288,10 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
   return json.data as T;
 }
 
-/* ───────────────── Öffentliche Daten ───────────────── */
+/* ───────────────── Public Data ───────────────── */
 
 let trendingCache: { at: number; data: Media[] } = { at: 0, data: [] };
-const TRENDING_TTL = 5 * 60 * 1000; // 5 Minuten
+const TRENDING_TTL = 5 * 60 * 1000; // 5 minutes
 
 export async function trendingAnimeCached(): Promise<Media[]> {
   const now = Date.now();
@@ -365,12 +354,12 @@ export async function mediaDetails(id: number): Promise<Media> {
   return data.Media;
 }
 
-/* ───────────────── User-abhängige Endpunkte ───────────────── */
+/* ───────────────── User-dependent Endpoints ───────────────── */
 
 export async function userLists(userId: number) {
   if (!userId) return { lists: [] };
 
-  // Cache prüfen (5 Minuten TTL)
+  // Check cache (5 minutes TTL)
   const now = Date.now();
   if (userListCache && userListCache.userId === userId && (now - userListCache.at) < USERLIST_CACHE_TTL) {
     devLog('[AniList] userLists cache HIT');
@@ -417,12 +406,12 @@ export async function userLists(userId: number) {
   );
   const result = data.MediaListCollection || { lists: [] };
 
-  // Cache speichern
+  // Save cache
   userListCache = { userId, data: result, at: now };
   return result;
 }
 
-/** Cache für userLists invalidieren (z.B. nach Save/Delete) */
+/** Invalidate userLists cache (e.g. after Save/Delete) */
 export function invalidateUserListCache(): void {
   userListCache = null;
 }
@@ -459,7 +448,7 @@ export async function saveEntry(
   progress?: number,
   score?: number
 ) {
-  // Muss eingeloggt sein
+  // Must be logged in
   await assertAuthenticated();
 
   const data = await gql<{ SaveMediaListEntry: { id: number } }>(
@@ -476,13 +465,13 @@ export async function saveEntry(
     { mediaId, status, progress, score },
     /* requireAuth */ true
   );
-  // Cache invalidieren, da Liste sich geändert hat
+  // Invalidate cache since list has changed
   userListCache = null;
   return data.SaveMediaListEntry?.id;
 }
 
 export async function deleteEntry(entryId: number) {
-  // Eintrag entfernen, nur mit Login erlaubt
+  // Remove entry, only allowed when logged in
   await assertAuthenticated();
 
   const data = await gql<{ DeleteMediaListEntry: { deleted?: boolean } | null }>(
@@ -495,7 +484,7 @@ export async function deleteEntry(entryId: number) {
     /* requireAuth */ true
   );
 
-  // Cache invalidieren, da Liste sich geändert hat
+  // Invalidate cache since list has changed
   userListCache = null;
   return !!data.DeleteMediaListEntry?.deleted;
 }
@@ -561,10 +550,10 @@ export async function fetchActivityFeed({
   return list.filter((a): a is ActivityEntry => Boolean(a));
 }
 
-/* ───────────────── Suche (öffentlich) ───────────────── */
+/* ───────────────── Search (public) ───────────────── */
 
 const searchCache = new Map<string, { at: number; items: Media[] }>();
-const SEARCH_TTL = 3 * 60 * 1000; // 3 Minuten
+const SEARCH_TTL = 3 * 60 * 1000; // 3 minutes
 
 export async function searchAnime(query: string, perPage = 20): Promise<Media[]> {
   const q = (query || "").trim();
@@ -639,16 +628,20 @@ async function assertAuthenticated() {
 }
 
 
-// ── Kompatibilitäts-Shims für ältere Aufrufer (z. B. Sidebar) ─────────────────
+// ── Compatibility shims for older callers (e.g. Sidebar) ─────────────────
 export async function loginAniList(): Promise<void> {
   await window.shokai?.auth?.login?.();
+}
+
+export async function loginAniListBeta(): Promise<void> {
+  await window.shokai?.auth?.loginBeta?.();
 }
 
 export async function logoutAniList(): Promise<void> {
   try {
     await window.shokai?.auth?.logout?.();
   } finally {
-    // Lokale Caches invalidieren
+    // Invalidate local caches
     tokenCache = { token: null, at: 0 };
     cachedViewer = null;
     userListCache = null;
@@ -665,7 +658,7 @@ export async function refreshAniList(): Promise<string | null> {
   }
 }
 
-// ── Social API Stubs (für ActivityCard) ─────────────────
+// ── Social API Stubs (for ActivityCard) ─────────────────
 export async function toggleLike(activityId: number): Promise<any> {
   const query = `
     mutation ($activityId: Int) {

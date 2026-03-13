@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("shokai", {
   // Auth
   auth: {
     login: () => ipcRenderer.invoke("auth:login"),
+    loginBeta: () => ipcRenderer.invoke("auth:login-beta"),
     logout: () => ipcRenderer.invoke("auth:logout"),
     onUpdated: (cb) => {
       const h = (_e, data) => cb(data);
@@ -30,7 +31,7 @@ contextBridge.exposeInMainWorld("shokai", {
     },
   },
 
-  // App-Status (mit viewerId!)
+  // App status (with viewerId!)
   status: () => ipcRenderer.invoke("app:status"),
 
   // AniList raw

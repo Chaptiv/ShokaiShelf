@@ -1,5 +1,5 @@
 // Smart Scrobble Matcher
-// Vergleicht Titel und bevorzugt die eigene Library
+// Compares titles and prioritizes the own Library
 
 import type { Media } from '../api/anilist';
 
@@ -9,7 +9,7 @@ interface MatchResult {
   source: 'library' | 'search';
 }
 
-// Einfache Levenshtein-Distanz für Textähnlichkeit
+// Simple Levenshtein distance for text similarity
 function similarity(s1: string, s2: string): number {
   let longer = s1.toLowerCase();
   let shorter = s2.toLowerCase();
@@ -45,7 +45,7 @@ function cleanTitle(title: string): string {
   if (!title) return '';
   return title
     .replace(/\b(TV|Movie|OVA|ONA|Special)\b/gi, '')
-    .replace(/\s+-\s+.*$/, '') // Entfernt " - Episode..."
+    .replace(/\s+-\s+.*$/, '') // Removes " - Episode..."
     .replace(/[^a-zA-Z0-9\s]/g, ' ')
     .trim()
     .toLowerCase()
@@ -62,8 +62,8 @@ export function findBestMatch(
   let bestScore = 0;
   let source: 'library' | 'search' = 'search';
 
-  // 1. Suche in der User Library (Priorität: CURRENT, PLANNING, PAUSED)
-  // Wir flachen die AniList-Listen Struktur ab
+  // 1. Search in user library (Priority: CURRENT, PLANNING, PAUSED)
+  // We flatten the AniList lists structure
   const allEntries = userLibrary.flatMap(list => list.entries || []);
 
   for (const entry of allEntries) {
@@ -71,13 +71,13 @@ export function findBestMatch(
     if (!media) continue;
 
     const titles = [media.title.english, media.title.romaji, media.title.native].filter(Boolean);
-    
+
     for (const t of titles) {
       const score = similarity(cleanedQuery, cleanTitle(t));
-      // Bonus für Anime, die man gerade schaut
+      // Bonus for currently watching anime
       const boost = entry.status === 'CURRENT' ? 0.15 : 0;
       const finalScore = score + boost;
-      
+
       if (finalScore > bestScore) {
         bestScore = finalScore;
         bestMatch = media;
@@ -86,12 +86,12 @@ export function findBestMatch(
     }
   }
 
-  // Wenn ein Library-Treffer sehr sicher ist (> 85%), nehmen wir ihn sofort
+  // If a library match is highly confident (> 85%), return it immediately
   if (bestScore > 0.85) {
     return { media: bestMatch, confidence: Math.min(bestScore, 1), source: 'library' };
   }
 
-  // 2. Globaler Fallback (Suchergebnisse von AniList)
+  // 2. Global fallback (Search results from AniList)
   for (const media of searchResults) {
     const titles = [media.title.english, media.title.romaji, media.title.native].filter(Boolean);
     for (const t of titles) {

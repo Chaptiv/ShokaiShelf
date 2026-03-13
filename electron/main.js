@@ -25,7 +25,7 @@ let discord = null;
 let notifications = null;
 let miruBridge = null;
 
-// Default-Werte – kannst du gerne leeren, wenn du willst
+// Default values - feel free to empty if you want
 const DEFAULT_CLIENT_ID = process.env.ANILIST_CLIENT_ID || "";
 const DEFAULT_CLIENT_SECRET = process.env.ANILIST_CLIENT_SECRET || "";
 const DEFAULT_REDIRECT_URI =
@@ -94,12 +94,65 @@ function startAuthServer() {
   const port = Number(u.port || 80);
 
   authHttpServer = http.createServer(async (req, res) => {
+    // Legacy Code Grant Callback OR Implicit Grant (Beta)
     if (req.method === "GET" && req.url.startsWith(u.pathname)) {
       const reqUrl = new URL(req.url, `http://${host}:${port}`);
       const code = reqUrl.searchParams.get("code");
+
+      // No code param → Implicit Grant (Beta flow)
+      // The access_token is in the URL fragment (#), which the server cannot see.
+      // Serve an HTML page that extracts it client-side and POSTs it back.
       if (!code) {
-        res.writeHead(400);
-        res.end("missing code");
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ShokaiShelf - Authenticating...</title>
+  <style>
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #060912; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .container { text-align: center; max-width: 400px; padding: 40px; }
+    h2 { font-size: 24px; margin-bottom: 16px; }
+    p { color: rgba(255,255,255,0.6); line-height: 1.6; }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #00d4ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 24px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h2>Completing Login...</h2>
+    <p id="msg">Verifying your token...</p>
+  </div>
+  <script>
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const token = params.get('access_token');
+    if (token) {
+      fetch('http://${host}:${port}/beta-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: token })
+      }).then(r => {
+        if (r.ok) {
+          document.getElementById('msg').textContent = 'Login successful! You can close this window.';
+          document.querySelector('.spinner').style.display = 'none';
+          document.querySelector('h2').textContent = '✓ Connected!';
+        } else {
+          document.getElementById('msg').textContent = 'Failed to save token.';
+          document.querySelector('.spinner').style.display = 'none';
+        }
+      }).catch(() => {
+        document.getElementById('msg').textContent = 'Connection error.';
+        document.querySelector('.spinner').style.display = 'none';
+      });
+    } else {
+      document.getElementById('msg').textContent = 'No token found. Please try again.';
+      document.querySelector('.spinner').style.display = 'none';
+    }
+  </script>
+</body>
+</html>`);
         return;
       }
 
@@ -123,7 +176,7 @@ function startAuthServer() {
             store.set("anilist.refresh_token", data.refresh_token);
           }
 
-          // Hole User ID und Username und speichere sie
+          // Fetch User ID and Username and save them
           const viewer = await validateAccessToken(data.access_token);
           if (viewer?.id) {
             store.set("anilist.user_id", viewer.id);
@@ -322,6 +375,95 @@ function startAuthServer() {
       return;
     }
 
+    // Beta Implicit Grant Callback – serves HTML page to capture #access_token from URL fragment
+    if (req.method === "GET" && req.url.startsWith("/beta-callback")) {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ShokaiShelf - Authenticating...</title>
+  <style>
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #060912; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .container { text-align: center; max-width: 400px; padding: 40px; }
+    h2 { font-size: 24px; margin-bottom: 16px; }
+    p { color: rgba(255,255,255,0.6); line-height: 1.6; }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #00d4ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 24px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h2 id="title">Completing Login...</h2>
+    <p id="msg">Verifying your token...</p>
+  </div>
+  <script>
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const token = params.get('access_token');
+    if (token) {
+      fetch('http://127.0.0.1:43210/beta-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: token })
+      }).then(r => {
+        document.querySelector('.spinner').style.display = 'none';
+        if (r.ok) {
+          document.getElementById('title').textContent = '\u2713 Connected!';
+          document.getElementById('msg').textContent = 'Login successful! You can close this window.';
+        } else {
+          document.getElementById('title').textContent = 'Login Failed';
+          document.getElementById('msg').textContent = 'Could not save token.';
+        }
+      }).catch(() => {
+        document.querySelector('.spinner').style.display = 'none';
+        document.getElementById('title').textContent = 'Login Failed';
+        document.getElementById('msg').textContent = 'Connection error.';
+      });
+    } else {
+      document.querySelector('.spinner').style.display = 'none';
+      document.getElementById('title').textContent = 'Login Failed';
+      document.getElementById('msg').textContent = 'No access token found. Please try again.';
+    }
+  </script>
+</body>
+</html>`);
+      return;
+    }
+
+    // Endpoint to receive the token from the beta-callback page
+    if (req.method === "POST" && req.url === "/beta-token") {
+      let body = "";
+      req.on('data', chunk => { body += chunk.toString(); });
+      req.on('end', async () => {
+        try {
+          const { access_token } = JSON.parse(body);
+          if (access_token) {
+            store.set("anilist.access_token", access_token);
+
+            const viewer = await validateAccessToken(access_token);
+            if (viewer?.id) store.set("anilist.user_id", viewer.id);
+            if (viewer?.name) store.set("anilist.viewer_name", viewer.name);
+
+            if (notifications) notifications.updateAuth(access_token, viewer?.id?.toString() || null);
+            if (discord && viewer?.name) discord.updateUsername(viewer.name);
+
+            if (mainWindow) mainWindow.webContents.send("auth:updated", { loggedIn: true });
+
+            res.writeHead(200);
+            res.end("ok");
+          } else {
+            res.writeHead(400); res.end("No token provided");
+          }
+        } catch (e) {
+          logError("Beta token save error:", e);
+          res.writeHead(500); res.end("error");
+        }
+      });
+      return;
+    }
+
     res.writeHead(404);
     res.end("not found");
   });
@@ -375,6 +517,24 @@ ipcMain.handle("auth:login", async () => {
   authUrl.searchParams.set("client_id", client_id);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("redirect_uri", redirect_uri);
+
+  await shell.openExternal(authUrl.toString());
+  return true;
+});
+
+ipcMain.handle("auth:login-beta", async () => {
+  // Implicit Grant per AniList docs – only client_id + response_type=token needed
+  // AniList redirects to the registered redirect URL with #access_token in the fragment
+  const BETA_CLIENT_ID = "36791";
+
+  const authUrl = new URL("https://anilist.co/api/v2/oauth/authorize");
+  authUrl.searchParams.set("client_id", BETA_CLIENT_ID);
+  authUrl.searchParams.set("response_type", "token");
+
+  // Ensure the auth server is running to handle /beta-callback and /beta-token
+  if (!authHttpServer || !authHttpServer.listening) {
+    startAuthServer();
+  }
 
   await shell.openExternal(authUrl.toString());
   return true;
@@ -798,68 +958,13 @@ ipcMain.handle("achievement:notify", async (_e, achievement) => {
 });
 
 /* --------------------- AUTO-UPDATER --------------------- */
+let updateUrl = null;
+
 function setupAutoUpdater() {
-  if (!app.isPackaged) {
-    devLog('[Updater] Skipping auto-updater in dev mode');
-    return;
-  }
-
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.logger = console;
-
-  autoUpdater.on('checking-for-update', () => {
-    sendUpdaterStatus({ status: 'checking' });
-  });
-
-  autoUpdater.on('update-available', (info) => {
-    sendUpdaterStatus({
-      status: 'available',
-      version: info.version,
-      releaseNotes: info.releaseNotes
-    });
-  });
-
-  autoUpdater.on('update-not-available', () => {
-    sendUpdaterStatus({ status: 'idle' });
-  });
-
-  autoUpdater.on('download-progress', (progress) => {
-    sendUpdaterStatus({ status: 'downloading', progress: progress.percent });
-  });
-
-  autoUpdater.on('update-downloaded', (info) => {
-    sendUpdaterStatus({
-      status: 'ready',
-      version: info.version,
-      releaseNotes: info.releaseNotes
-    });
-  });
-
-  autoUpdater.on('error', (err) => {
-    logError('[Updater] Error:', err);
-
-    // Ignore error if it's just "net::ERR_INTERNET_DISCONNECTED" or similar when auto-checking
-    // Or just suppress sending error status to the renderer if we don't want the user bothered
-    const errMsg = err?.message || 'Unknown error';
-    if (errMsg.toLowerCase().includes('net::err_internet_disconnected')) {
-      return; // Silently fail on offline
-    }
-
-    sendUpdaterStatus({ status: 'error', error: errMsg });
-  });
-
-  // Check for updates after a short delay
-  setTimeout(() => {
-    autoUpdater.checkForUpdates().catch((err) => {
-      logError('[Updater] Initial check failed:', err);
-    });
-  }, 10000);
-
-  // Re-check every 2 hours
-  setInterval(() => {
-    autoUpdater.checkForUpdates().catch(() => { });
-  }, 2 * 60 * 60 * 1000);
+  // Check for updates shortly after startup
+  setTimeout(checkForUpdate, 8000);
+  // Re-check every 12 hours
+  setInterval(checkForUpdate, 12 * 60 * 60 * 1000);
 }
 
 function sendUpdaterStatus(info) {
@@ -868,18 +973,69 @@ function sendUpdaterStatus(info) {
   }
 }
 
-ipcMain.handle('updater:check', async () => {
-  if (!app.isPackaged) return { success: false, error: 'Dev mode' };
+async function checkForUpdate() {
   try {
-    const result = await autoUpdater.checkForUpdates();
-    return { success: true, version: result?.updateInfo?.version };
-  } catch (err) {
-    return { success: false, error: err.message };
+    devLog('[Updater] Checking for updates on GitHub...');
+    const res = await fetch("https://api.github.com/repos/Chaptiv/ShokaiShelf/releases/latest", {
+      headers: {
+        "User-Agent": "ShokaiShelf",
+        "Accept": "application/vnd.github.v3+json"
+      }
+    });
+
+    if (!res.ok) {
+      devLog('[Updater] GitHub API failed: ' + res.status);
+      return { success: false, error: 'GitHub API failed' };
+    }
+
+    const data = await res.json();
+    if (!data || !data.tag_name) return { success: false, error: 'Invalid response' };
+
+    const latestVersion = data.tag_name.replace(/^v/, '');
+    const currentVersion = app.getVersion();
+
+    // Naive version compare (e.g., 0.2.3 vs 0.2.2)
+    const v1parts = latestVersion.split('.').map(Number);
+    const v2parts = currentVersion.split('.').map(Number);
+
+    let isNewer = false;
+    for (let i = 0; i < Math.max(v1parts.length, v2parts.length); i++) {
+        const v1 = v1parts[i] || 0;
+        const v2 = v2parts[i] || 0;
+        if (v1 > v2) { isNewer = true; break; }
+        if (v1 < v2) { break; }
+    }
+
+    if (isNewer) {
+      devLog(`[Updater] New version available: ${latestVersion} (Current: ${currentVersion})`);
+      updateUrl = data.html_url;
+      sendUpdaterStatus({
+        status: "ready", // Re-use "ready" status so the UI shows the action button
+        version: latestVersion,
+        releaseNotes: data.body,
+      });
+      return { success: true, version: latestVersion };
+    } else {
+      devLog(`[Updater] App is up to date (${currentVersion})`);
+      return { success: false, message: 'Up to date' };
+    }
+  } catch (e) {
+    logError('[Updater] Check failed:', e);
+    return { success: false, error: e.message };
   }
+}
+
+ipcMain.handle('updater:check', async () => {
+  return await checkForUpdate();
 });
 
-ipcMain.handle('updater:install', () => {
-  autoUpdater.quitAndInstall(false, true);
+ipcMain.handle('updater:install', async () => {
+  if (updateUrl) {
+    await shell.openExternal(updateUrl);
+  } else {
+    await shell.openExternal("https://github.com/Chaptiv/ShokaiShelf/releases/latest");
+  }
+  return { success: true };
 });
 
 /* --------------------- APP LIFECYCLE --------------------- */
@@ -905,18 +1061,155 @@ app.whenReady().then(async () => {
   miruBridge = new MiruBridge();
   miruBridge.start();
 
-  // Forward scrobble events to renderer, checking for known matches first
-  miruBridge.onScrobble((data) => {
+  // Forward scrobble events to renderer AND auto-update AniList if appropriate
+  miruBridge.onScrobble(async (data) => {
+    // Try to find a known AniList mediaId for this title
     if (scrobbler) {
       const knownId = scrobbler.findMatch(data.title);
       if (knownId) {
         data.mediaId = knownId;
-        devLog(`[Main] Scrobbler match found: ${data.title} -> ${knownId}`);
+        devLog(`[Miru/Scrobble] Scrobbler match found: ${data.title} -> ${knownId}`);
       }
     }
 
+    // Forward to renderer for UI display
     if (mainWindow) {
       mainWindow.webContents.send('miru:scrobble', data);
+    }
+
+    // --- AUTO-SCROBBLE: Only proceed if episode is completed and we have episode number ---
+    if (!data.completed || !data.episode) {
+      devLog(`[Miru/Scrobble] Skipping auto-update (completed=${data.completed}, episode=${data.episode})`);
+      return;
+    }
+
+    const accessToken = store.get("anilist.access_token");
+    if (!accessToken) {
+      devLog("[Miru/Scrobble] No access token, skipping auto-update");
+      return;
+    }
+
+    try {
+      const watchedEpisode = data.episode;
+      let mediaId = data.mediaId;
+
+      // Step 1: If we don't have a mediaId, search AniList for this title
+      if (!mediaId) {
+        devLog(`[Miru/Scrobble] Searching AniList for: "${data.title}"`);
+        const searchRes = await fetch("https://graphql.anilist.co", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
+          body: JSON.stringify({
+            query: `query($search:String){
+              Page(perPage:5){
+                media(search:$search,type:ANIME){
+                  id title{romaji english native}
+                }
+              }
+            }`,
+            variables: { search: data.title },
+          }),
+        });
+        const searchData = await searchRes.json();
+        const results = searchData?.data?.Page?.media;
+
+        if (!results || results.length === 0) {
+          devLog(`[Miru/Scrobble] No AniList results for "${data.title}"`);
+          return;
+        }
+
+        // Use the first result (best match)
+        mediaId = results[0].id;
+        const matchedTitle = results[0].title.english || results[0].title.romaji;
+        devLog(`[Miru/Scrobble] Matched to: ${matchedTitle} (ID: ${mediaId})`);
+
+        // Save the match for future lookups
+        if (scrobbler) {
+          scrobbler.confirmMatch(data.title, mediaId);
+          devLog(`[Miru/Scrobble] Saved alias: "${data.title}" -> ${mediaId}`);
+        }
+      }
+
+      // Step 2: Check the user's current progress for this anime
+      const listRes = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          query: `query($mediaId:Int){
+            Media(id:$mediaId){
+              id episodes
+              mediaListEntry{
+                id status progress
+              }
+            }
+          }`,
+          variables: { mediaId },
+        }),
+      });
+      const listData = await listRes.json();
+      const media = listData?.data?.Media;
+
+      if (!media) {
+        devLog(`[Miru/Scrobble] Could not fetch media info for ID ${mediaId}`);
+        return;
+      }
+
+      const entry = media.mediaListEntry;
+      const currentProgress = entry?.progress || 0;
+      const totalEpisodes = media.episodes; // null if unknown/airing
+
+      devLog(`[Miru/Scrobble] Current progress: ${currentProgress}/${totalEpisodes || '?'}, watched episode: ${watchedEpisode}`);
+
+      // Step 3: Only update if the watched episode is the NEXT expected one
+      if (watchedEpisode !== currentProgress + 1) {
+        devLog(`[Miru/Scrobble] Episode ${watchedEpisode} is NOT the next expected (${currentProgress + 1}), skipping update`);
+        return;
+      }
+
+      // Step 4: Determine the new status
+      let newStatus = entry?.status || "CURRENT";
+      if (!entry) {
+        // Not on list yet — add it as CURRENT
+        newStatus = "CURRENT";
+      }
+      // If this is the last episode, mark as COMPLETED
+      if (totalEpisodes && watchedEpisode >= totalEpisodes) {
+        newStatus = "COMPLETED";
+      }
+
+      // Step 5: Update AniList
+      devLog(`[Miru/Scrobble] Updating AniList: episode ${watchedEpisode}, status: ${newStatus}`);
+      const updateRes = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          query: `mutation($mediaId:Int!,$status:MediaListStatus,$progress:Int){
+            SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress){
+              id progress status
+            }
+          }`,
+          variables: { mediaId, status: newStatus, progress: watchedEpisode },
+        }),
+      });
+      const updateData = await updateRes.json();
+
+      if (updateData?.data?.SaveMediaListEntry) {
+        devLog(`[Miru/Scrobble] ✓ Updated "${data.title}" to episode ${watchedEpisode} (${newStatus})`);
+        // Notify renderer about the successful update
+        if (mainWindow) {
+          mainWindow.webContents.send('miru:updated', {
+            mediaId,
+            title: data.title,
+            episode: watchedEpisode,
+            status: newStatus,
+          });
+        }
+      } else {
+        devLog(`[Miru/Scrobble] ✗ Update failed:`, JSON.stringify(updateData?.errors || updateData));
+      }
+
+    } catch (err) {
+      logError("[Miru/Scrobble] Auto-update error:", err);
     }
   });
 

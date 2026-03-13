@@ -807,7 +807,15 @@
       "longSeries": "Lange Serien",
       "slowPace": "Langsames Tempo"
     },
-    "insights": "Insights"
+    "insights": "Insights",
+    "watchingStyles": {
+      "powerBinger": "Power Binger",
+      "heavyWatcher": "Intensiv-Gucker",
+      "steadyViewer": "Regelmäßiger Zuschauer",
+      "casualWatcher": "Gelegenheitszuschauer",
+      "slowBurner": "Slow Burner",
+      "unknown": "Unbekannt"
+    }
   },
   "insight": {
     "stats": "Statistik",

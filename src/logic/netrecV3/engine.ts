@@ -15,7 +15,7 @@ import type {
   MediaListEntry,
 } from "./types";
 
-// DEFAULT_CONFIG ist ein Value, kein Type!
+// DEFAULT_CONFIG is a Value, not a Type!
 import { DEFAULT_CONFIG } from "./types";
 
 import {
@@ -275,10 +275,11 @@ export class AnimeNetRecV3 {
   ): Promise<Candidate[]> {
     const candidates: Candidate[] = [];
 
-    // Get high-scored completed anime (potential for sequels)
+    // Get high-scored completed anime (potential for sequels), shuffle for diversity
     const seeds = profile.entries
       .filter((e) => e.status === "COMPLETED" && (e.score || 0) >= 8)
-      .slice(0, 15); // Check top 15
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 15); // Check top 15 random highly rated
 
     for (const entry of seeds) {
       const media = entry.media;
@@ -313,9 +314,12 @@ export class AnimeNetRecV3 {
     profile: UserProfile
   ): Promise<Candidate[]> {
     // Select seeds: high-scored completed anime
-    const seeds = profile.entries
-      .filter((e) => e.status === "COMPLETED" && (e.score || 0) >= 8)
-      .sort((a, b) => (b.score || 0) - (a.score || 0))
+    const completedEntries = profile.entries
+      .filter((e) => e.status === "COMPLETED" && (e.score || 0) >= 8);
+
+    // Shuffle the array of completed anime to ensure diversity
+    const seeds = completedEntries
+      .sort(() => 0.5 - Math.random())
       .slice(0, this.config.maxSeedsPerBatch)
       .map((e) => e.media.id);
 
@@ -386,9 +390,10 @@ export class AnimeNetRecV3 {
   private async generateContentCandidates(
     profile: UserProfile
   ): Promise<Candidate[]> {
-    // Use completed high-scored anime as seeds
+    // Use completed high-scored anime as seeds, shuffled for diversity
     const seeds = profile.entries
       .filter((e) => e.status === "COMPLETED" && (e.score || 0) >= 7)
+      .sort(() => 0.5 - Math.random())
       .slice(0, 10)
       .map((e) => e.media);
 
@@ -478,7 +483,7 @@ export class AnimeNetRecV3 {
       const genreBoost = this.calculateUserStatsBoost(
         candidate.media.genres || [],
         profile.stats.genres || [],
-        (item) => item
+        (item: any) => item.genre
       );
       contentScore += genreBoost * 0.15;
 
@@ -486,16 +491,16 @@ export class AnimeNetRecV3 {
       const studioBoost = this.calculateUserStatsBoost(
         (candidate.media.studios?.nodes || []).map((s) => s.name),
         profile.stats.studios || [],
-        (item) => item.name
+        (item: any) => item.studio?.name
       );
       contentScore += studioBoost * 0.1;
     }
 
     // NEW: Favorite Genre Boost (from user preferences)
-    if (profile.preferences?.favoriteGenres && profile.preferences.favoriteGenres.length > 0) {
+    if (profile.preferences && profile.preferences.favoriteGenres && profile.preferences.favoriteGenres.length > 0) {
       const mediaGenres = candidate.media.genres || [];
       const favoriteGenreMatches = mediaGenres.filter((genre) =>
-        profile.preferences.favoriteGenres?.includes(genre)
+        profile.preferences?.favoriteGenres?.includes(genre)
       ).length;
       if (favoriteGenreMatches > 0) {
         const favoriteBoost = (favoriteGenreMatches / mediaGenres.length) * 0.2;
@@ -558,7 +563,7 @@ export class AnimeNetRecV3 {
 
     // Hard block for disliked anime
     if (features.isDisliked) {
-      metaScore *= 0.1; // Heavy penalty
+      metaScore = 0; // Absolute zero
     }
 
     // Clamp
@@ -626,7 +631,7 @@ export class AnimeNetRecV3 {
       const itemStr = String(candidateItem);
       const stat = userStats.find((s) => getName(s) === itemStr);
 
-      if (stat && "meanScore" in stat) {
+      if (stat && typeof stat === "object" && "meanScore" in stat) {
         const meanScore = (stat as any).meanScore;
         // Normalize mean score (0-10 scale → 0-1)
         if (typeof meanScore === "number" && meanScore > 0) {

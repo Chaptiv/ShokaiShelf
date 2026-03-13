@@ -1,5 +1,5 @@
 // src/components/ActivityCard.tsx
-// Enhanced Activity Card mit Likes, Replies und User Hover
+// Enhanced Activity Card with Likes, Replies and User Hover
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
@@ -21,8 +21,8 @@ interface Props {
 
 export default function ActivityCard({ activity, onMediaClick }: Props) {
   const { t } = useTranslation();
-  const [isLiked, setIsLiked] = useState(activity.isLiked || false);
-  const [likeCount, setLikeCount] = useState(activity.likeCount || 0);
+  const [isLiked, setIsLiked] = useState((activity as any).isLiked || false);
+  const [likeCount, setLikeCount] = useState((activity as any).likeCount || 0);
   const [showReplies, setShowReplies] = useState(false);
   const [replies, setReplies] = useState<any[]>([]);
   const [replyText, setReplyText] = useState("");
@@ -38,7 +38,7 @@ export default function ActivityCard({ activity, onMediaClick }: Props) {
     setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
 
     try {
-      await toggleLike(activity.id, "ACTIVITY");
+      await toggleLike(activity.id);
     } catch (error) {
       console.error("Failed to toggle like:", error);
       // Revert on error
@@ -90,13 +90,13 @@ export default function ActivityCard({ activity, onMediaClick }: Props) {
 
   const isTextActivity = activity.type === "TextActivity";
 
-  // Status text für ListActivity
+  // Status text for ListActivity
   const getStatusText = () => {
     if (!activity.status) return "";
 
     const statusMap: Record<string, string> = {
       completed: t("social.activityStatus.completed"),
-      "watched episode": t("social.activityStatus.watchedEpisode", { count: activity.progress }),
+      "watched episode": t("social.activityStatus.watchedEpisode", { count: Number((activity as any).progress) || 1 }),
       "plans to watch": t("social.activityStatus.plansToWatch"),
       dropped: t("social.activityStatus.dropped"),
       paused: t("social.activityStatus.paused"),
@@ -156,7 +156,7 @@ export default function ActivityCard({ activity, onMediaClick }: Props) {
             marginBottom: 16,
             whiteSpace: "pre-wrap",
           }}
-          dangerouslySetInnerHTML={{ __html: sanitizeAniListHTML(activity.text) }}
+          dangerouslySetInnerHTML={{ __html: sanitizeAniListHTML((activity as any).text || "") }}
         />
       ) : (
         <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>

@@ -125,18 +125,7 @@ const DreamToggle: React.FC<{
 // TYPES
 // ============================================================================
 
-declare global {
-  interface Window {
-    shokai?: {
-      discord?: {
-        getStatus: () => Promise<{ enabled: boolean; connected: boolean; currentActivity: any }>;
-        setEnabled: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
-        setActivity: (activity: any) => Promise<{ success: boolean }>;
-        clearActivity: () => Promise<{ success: boolean }>;
-      };
-    };
-  }
-}
+
 
 // ============================================================================
 // MAIN COMPONENT

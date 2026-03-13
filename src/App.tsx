@@ -39,20 +39,7 @@ async function safeStatus(): Promise<any> {
 
 type PageKey = "home" | "feed" | "search" | "library" | "social" | "settings" | "echo" | "achievements";
 
-declare global {
-  interface Window {
-    shokai?: {
-      app: { needsSetup: () => Promise<boolean> };
-      setup: { save: (cfg: { client_id: string; client_secret: string; redirect_uri?: string }) => Promise<any> };
-      auth: {
-        login: () => Promise<any>;
-        logout: () => Promise<any>;
-        onUpdated?: (cb: (data: any) => void) => () => void;
-      };
-      status: () => Promise<{ hasCreds: boolean; loggedIn: boolean; viewerName?: string | null }>;
-    };
-  }
-}
+
 
 /* ───────────────── Onboarding Icons ───────────────── */
 const OnboardingIcons = {
@@ -540,9 +527,9 @@ function LoginRequired({ onRetry }: { onRetry: () => void }) {
           {t('login.connectDescription')}
         </p>
 
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", flexDirection: "column", alignItems: "center" }}>
           <button
-            onClick={() => window.shokai?.auth?.login?.()}
+            onClick={() => window.shokai?.auth?.loginBeta?.()}
             style={{
               background: "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)",
               border: "none",
@@ -554,11 +541,44 @@ function LoginRequired({ onRetry }: { onRetry: () => void }) {
               color: "#000",
               transition: "all 0.2s",
               boxShadow: "0 4px 20px rgba(0, 212, 255, 0.3)",
+              width: "100%",
+              maxWidth: "300px"
             }}
-            onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+            onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.02)"}
             onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
           >
-            {t('login.signIn')}
+            {t('login.signIn')} (Beta)
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0', opacity: 0.3, width: "100%", maxWidth: "300px" }}>
+            <div style={{ flex: 1, height: 1, background: '#fff' }} />
+            <span style={{ margin: '0 12px', fontSize: 12, textTransform: 'uppercase' }}>OR</span>
+            <div style={{ flex: 1, height: 1, background: '#fff' }} />
+          </div>
+
+          <button
+            onClick={() => window.shokai?.auth?.login?.()}
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 12,
+              padding: "12px 24px",
+              fontWeight: 600,
+              cursor: "pointer",
+              fontSize: 14,
+              color: "rgba(255,255,255,0.8)",
+              transition: "all 0.2s",
+              width: "100%",
+              maxWidth: "300px"
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+            }}
+          >
+            Legacy Login (Advanced)
           </button>
           <button
             onClick={onRetry}
@@ -699,7 +719,7 @@ export default function App() {
 
   const hasBridge = typeof window !== "undefined" && !!window.shokai;
 
-  // versucht AnimeNetRec V3 vorzuwarmen; wenn Datei nicht da ist: egal
+  // Tries to warm up AnimeNetRec V3; if file is missing: ignore
   const preloadEngine = async () => {
     try {
       setBootStatus(t('boot.loadingEngine'));
@@ -710,7 +730,7 @@ export default function App() {
       }
       setEngineReady(true);
     } catch (_e) {
-      // Engine nicht vorhanden ??' trotzdem weiter
+      // Engine not available ??' continue anyway
       setEngineReady(true);
     }
   };
@@ -760,7 +780,7 @@ export default function App() {
       devLog("Calling needsSetup...");
 
       const mustSetup = await Promise.race([
-        window.shokai.app.needsSetup(),
+        window.shokai!.app!.needsSetup!(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("needsSetup timeout")), 5000))
       ]);
 
@@ -779,7 +799,7 @@ export default function App() {
       devLog("Calling status...");
 
       const status = await Promise.race([
-        window.shokai.status(),
+        window.shokai!.status!(),
         new Promise((_, reject) => setTimeout(() => reject(new Error("status timeout")), 5000))
       ]);
 
@@ -852,7 +872,7 @@ export default function App() {
       }
     } catch (error) {
       logError("REFRESH ERROR:", error);
-      // Bei Fehler: zeige Login-Screen als Fallback
+      // On error: show login screen as fallback
       setFtueState({ needsSetup: false, needsLogin: true, needsColdStart: false });
       setLoggedIn(false);
       setLoading(false);
@@ -870,7 +890,7 @@ export default function App() {
   useEffect(() => {
     if (!hasBridge) return;
     refresh();
-    const off = window.shokai.auth?.onUpdated?.(() => refresh());
+    const off = window.shokai!.auth?.onUpdated?.(() => refresh());
     return () => off && off();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasBridge]);
@@ -909,21 +929,21 @@ export default function App() {
         devLog('[App] Discord RPC updated (local):', candidate.cleanTitle);
       }
 
-      // Wenn wir in der Library einen sehr guten Match finden, boosten wir die Confidence
+      // If we find a very good match in the library, boost confidence
       if (userLibrary.length > 0) {
         const match = findBestMatch(candidate.cleanTitle, userLibrary);
         if (match.media && match.confidence > 0.85) {
-          devLog(`[App] Scrobbler Smart Match: ${candidate.cleanTitle} -> ${match.media.title.english}`);
+          devLog(`[App] Scrobbler Smart Match: ${candidate.cleanTitle} -> ${match.media.title?.english || match.media.title?.romaji}`);
 
-          // Wenn extrem sicher, könnten wir hier auch auto-scrobbeln. 
-          // Aber beim lokalen Scrobbler (Dateien) ist ein Toast oft sicherer.
-          // Wir setzen aber die Media-Informationen schon mal für den Toast.
+          // If extremely sure, we could also auto-scrobble here.
+          // But with the local scrobbler (files) a toast is often safer.
+          // We set the media information for the toast anyway.
           (candidate as any).mediaId = match.media.id;
           candidate.confidence = Math.max(candidate.confidence, match.confidence);
         }
       }
 
-      // Nur benachrichtigen, wenn nicht extrem sicher
+      // Only notify if not extremely sure
       if (candidate.confidence < 0.9) {
         (window as any).shokai?.app?.notify({
           title: t('scrobbler.detected'),
@@ -956,7 +976,7 @@ export default function App() {
         devLog('[App] Discord RPC updated:', data.title);
       }
 
-      // Smart Matcher: Versuche ID aus Library oder Suche zu finden
+      // Smart Matcher: Try to find ID from Library or Search
       let mediaId = data.mediaId;
       let confidence = data.confidence || 0;
 
@@ -965,24 +985,24 @@ export default function App() {
         if (match.media && match.confidence > 0.85) {
           mediaId = match.media.id;
           confidence = match.confidence;
-          devLog(`[App] Smart Match (Library): ${data.title} -> ${match.media.title.english} (${Math.round(confidence * 100)}%)`);
+          devLog(`[App] Smart Match (Library): ${data.title} -> ${match.media.title?.english || match.media.title?.romaji} (${Math.round(confidence * 100)}%)`);
         }
       }
 
-      // Nur bei PLAY events (progress = 0) zeigen wir den Toast
+      // Show toast only for PLAY events (progress = 0)
       if (data.progress === 0 && !data.completed) {
-        // Wenn wir extrem sicher sind (>92%), überspringen wir den Toast und scrobbeln still
+        // If we are extremely sure (>92%), skip the toast and scrobble silently
         if (mediaId && confidence > 0.92) {
           devLog('[App] High confidence, skipping toast:', data.title);
           setLastScrobbledUrl(data.url);
-          // Wir lernen das Match trotzdem im Scrobbler-Gedächtnis
+          // We still learn the match in the scrobbler memory
           (window as any).shokai?.scrobbler?.confirmMatch(data.title, mediaId);
         } else {
-          // Ansonsten fragen wir den User
+          // Otherwise we ask the user
           setMiruScrobble({ ...data, mediaId, confidence });
           setLastScrobbledUrl(data.url);
 
-          // System-Benachrichtigung schicken
+          // Send system notification
           (window as any).shokai?.app?.notify({
             title: t('scrobbler.detected'),
             body: t('scrobbler.pleaseConfirmBody', { title: data.title })
@@ -991,11 +1011,11 @@ export default function App() {
       } else if (data.completed || data.progress >= 75) {
         // Auto-update bei completion (>75% watched)
         try {
-          const { saveEntry, searchMedia } = await import("./api/anilist");
+          const { saveEntry, searchAnime } = await import("./api/anilist");
 
-          // Letzter Rettungsanker: Wenn wir noch keine ID haben, suchen wir jetzt global
+          // Last resort: If we still have no ID, search globally now
           if (!mediaId) {
-            const searchResults = await searchMedia(data.title);
+            const searchResults = await searchAnime(data.title);
             const match = findBestMatch(data.title, userLibrary, searchResults);
             if (match.media) {
               mediaId = match.media.id;
@@ -1007,15 +1027,15 @@ export default function App() {
             await saveEntry(mediaId, "CURRENT", data.episode);
             devLog('[App] Auto-updated AniList:', mediaId, 'Episode', data.episode);
 
-            // Wenn wir erfolgreich waren, lernen wir das für die Zukunft!
+            // If we were successful, learn this for the future!
             (window as any).shokai?.scrobbler?.confirmMatch(data.title, mediaId);
           } else {
-            // FALLBACK: Kein Match gefunden - User muss manuell bestätigen
+            // FALLBACK: No match found - User must confirm manually
             devLog('[App] No match found for 75% event, showing toast:', data.title);
             setMiruScrobble({ ...data, mediaId: null, confidence: 0 });
             setLastScrobbledUrl(data.url);
 
-            // System-Benachrichtigung
+            // System notification
             (window as any).shokai?.app?.notify({
               title: t('scrobbler.almostFinished'),
               body: t('scrobbler.almostFinishedBody', { title: data.title })
@@ -1029,7 +1049,7 @@ export default function App() {
     return () => unsub?.();
   }, [hasBridge, lastScrobbledUrl, userLibrary]);
 
-  // kein preload
+  // no preload
   if (!hasBridge) {
     return (
       <SettingsProvider>
@@ -1038,7 +1058,7 @@ export default function App() {
     );
   }
 
-  // lädt gerade (initial boot only)
+  // currently loading (initial boot only)
   if (loading || !engineReady) {
     return (
       <SettingsProvider>
@@ -1062,12 +1082,14 @@ export default function App() {
     );
   }
 
-  // echte App
+  // real app
   return (
     <SettingsProvider>
+      {/* GitHub Update Checker */}
       <UpdateBanner />
       <div style={{ display: "flex", height: "100vh" }}>
-        <Sidebar page={page} setPage={setPage} authed={true} username={username} avatar={avatar} hideCharacters />
+        {/* @ts-ignore */}
+        <Sidebar page={page} setPage={(p) => setPage(p as PageKey)} authed={true} username={username} avatar={avatar} hideCharacters />
         <div style={{ flex: 1, overflowY: "auto", background: "#060912" }}>
           <div style={{ padding: page === "home" ? 0 : 20 }}>
             <AnimatePresence mode="popLayout" initial={false}>
@@ -1075,7 +1097,7 @@ export default function App() {
                 <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   <Suspense fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><BootLoader status={t('dashboard.loadingDream')} style={{ height: "auto", background: "transparent" }} /></div>}>
                     <Dashboard
-                      onNavigate={setPage}
+                      onNavigate={(p) => setPage(p as PageKey)}
                       onLoadingChange={handleDashboardLoadingChange}
                     />
                   </Suspense>
