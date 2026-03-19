@@ -349,6 +349,8 @@ export default function Library_dream() {
 
       const entries: ListEntry[] = [];
       for (const list of data?.lists || []) {
+        // Skip custom lists — entries already exist in standard status lists
+        if (list.isCustomList) continue;
         for (const entry of list.entries || []) {
           if (entry.media) {
             entries.push({

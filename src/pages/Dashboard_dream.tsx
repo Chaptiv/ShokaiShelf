@@ -393,6 +393,7 @@ export default function DashboardDream({
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isPrivateAccount, setIsPrivateAccount] = useState(false);
   const [snoozedIds, setSnoozedIds] = useState<Set<number>>(new Set());
   const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
   const [dislikedIds, setDislikedIds] = useState<Set<number>>(new Set());
@@ -455,7 +456,13 @@ export default function DashboardDream({
 
         const [recs, lists] = await Promise.all([
           engine.recommend(viewer.name, 50),
-          userLists(viewer.id),
+          userLists(viewer.id).catch((e) => {
+            if (e.code === 'PRIVATE_USER') {
+              setIsPrivateAccount(true);
+            }
+            devWarn("[Dashboard] userLists failed (private account?):", e.message);
+            return { lists: [] };
+          }),
         ]);
 
         // Load profile insights
@@ -795,6 +802,39 @@ export default function DashboardDream({
       />
 
       <div style={{ maxWidth: "1600px", margin: "0 auto", padding: "0 24px" }}>
+        
+        {/* Private Account Warning */}
+        {isPrivateAccount && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              background: "rgba(255, 171, 0, 0.1)",
+              border: "1px solid rgba(255, 171, 0, 0.3)",
+              borderRadius: "12px",
+              padding: "16px 20px",
+              marginBottom: "32px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              color: "#ffab00"
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: "15px", marginBottom: "4px" }}>
+                {t('dashboard.privateAccountWarning.title', 'Private Account Detected')}
+              </div>
+              <div style={{ fontSize: "13px", opacity: 0.9 }}>
+                {t('dashboard.privateAccountWarning.message', 'Your AniList profile is set to private. Your active watchlist cannot be displayed, and AnimeNetRec will have limited functionality since it cannot learn from your public library.')}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

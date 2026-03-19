@@ -1,6 +1,6 @@
 {
   "name": "shokaishelf",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "type": "module",
   "main": "electron/main.js",
@@ -27,7 +27,7 @@
     "discord-rpc": "^4.0.1",
     "dompurify": "^3.2.6",
     "electron-store": "^10.0.0",
-    "electron-updater": "^6.7.3",
+
     "framer-motion": "^11.15.0",
     "html2canvas": "^1.4.1",
     "i18next": "^25.7.3",

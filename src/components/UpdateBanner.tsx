@@ -75,6 +75,7 @@ export default function UpdateBanner() {
         <AnimatePresence>
             {visible && (
                 <motion.div
+                    key="update-banner"
                     initial={{ y: -60, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -60, opacity: 0 }}
@@ -149,7 +150,7 @@ export default function UpdateBanner() {
 
             {/* Changelog Modal Overlay */}
             {showChangelog && update.releaseNotes && (
-                <div style={styles.modalOverlay} onClick={toggleChangelog}>
+                <div key="changelog-modal" style={styles.modalOverlay} onClick={toggleChangelog}>
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}

@@ -136,17 +136,22 @@ export async function fetchUserLibrary(userName: string): Promise<MediaListEntry
     "user-library",
     userName,
     async () => {
-      const data = await query<{
-        MediaListCollection: { lists: Array<{ entries: MediaListEntry[] }> };
-      }>(USER_LIBRARY_QUERY, { userName });
+      try {
+        const data = await query<{
+          MediaListCollection: { lists: Array<{ entries: MediaListEntry[] }> };
+        }>(USER_LIBRARY_QUERY, { userName });
 
-      const entries: MediaListEntry[] = [];
-      for (const list of data.MediaListCollection.lists) {
-        entries.push(...list.entries);
+        const entries: MediaListEntry[] = [];
+        for (const list of data.MediaListCollection.lists) {
+          entries.push(...list.entries);
+        }
+
+        devLog(`[Query] Fetched ${entries.length} entries for ${userName}`);
+        return entries;
+      } catch (e: any) {
+        devWarn(`[Query] Failed to fetch user library for ${userName} (private account?):`, e.message);
+        return []; // Return empty library instead of crashing
       }
-
-      devLog(`[Query] Fetched ${entries.length} entries for ${userName}`);
-      return entries;
     }
   );
 }
@@ -192,12 +197,17 @@ export async function fetchUserStats(userName: string): Promise<UserStats> {
     "user-stats",
     userName,
     async () => {
-      const data = await query<{
-        User: { statistics: { anime: UserStats } };
-      }>(USER_STATS_QUERY, { userName });
+      try {
+        const data = await query<{
+          User: { statistics: { anime: UserStats } };
+        }>(USER_STATS_QUERY, { userName });
 
-      devLog(`[Query] Fetched stats for ${userName}`);
-      return data.User.statistics.anime;
+        devLog(`[Query] Fetched stats for ${userName}`);
+        return data.User.statistics.anime;
+      } catch (e: any) {
+        devWarn(`[Query] Failed to fetch stats for ${userName}:`, e.message);
+        return undefined as any; // Fallback to undefined stats
+      }
     }
   );
 }

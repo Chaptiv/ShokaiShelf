@@ -202,7 +202,7 @@ async function buildAndPrepare() {
             return;
         }
 
-        // Copy macOS artifacts (only DMG for 0.2.2)
+        // Copy macOS artifacts (only DMG for 0.2.2.1)
         const releaseDir = path.join(projectRoot, 'release', version);
         if (await fs.pathExists(releaseDir)) {
             let count = 0;

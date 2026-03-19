@@ -279,11 +279,16 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
   const json = await res.json();
   if (json.errors) {
     const msg = json.errors[0]?.message || "AniList error";
+    const err = new Error(msg);
+    // Tag privacy-related errors
+    if (/private/i.test(msg)) {
+      (err as any).code = 'PRIVATE_USER';
+    }
     // Also invalidate cache for auth-related errors
     if (/auth|token|unauthorized/i.test(msg)) {
       tokenCache = { token: null, at: 0 };
     }
-    throw new Error(msg);
+    throw err;
   }
   return json.data as T;
 }

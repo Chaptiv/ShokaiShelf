@@ -1,7 +1,6 @@
 // electron/main.js (ESM, ohne Tag-Scraper)
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import electronUpdater from "electron-updater";
-const { autoUpdater } = electronUpdater;
+// electron-updater removed – ShokaiShelf uses GitHub Release checks instead
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -631,6 +630,13 @@ ipcMain.handle("rec:setModel", (_e, userId, model) => {
 
 /* --------------------- IPC: APP SETUP --------------------- */
 ipcMain.handle("app:needsSetup", async () => {
+  // Beta login (Implicit Grant) doesn't store client_id/client_secret,
+  // so if we already have a valid access_token, setup is never needed.
+  const access_token =
+    store.get("anilist.access_token") ||
+    (store.get("anilist")?.access_token ?? "");
+  if (access_token) return false;
+
   const { client_id, client_secret } = cfg();
   return !client_id || !client_secret;
 });
@@ -994,7 +1000,7 @@ async function checkForUpdate() {
     const latestVersion = data.tag_name.replace(/^v/, '');
     const currentVersion = app.getVersion();
 
-    // Naive version compare (e.g., 0.2.3 vs 0.2.2)
+    // Naive version compare (supports any number of segments: x.y.z.w)
     const v1parts = latestVersion.split('.').map(Number);
     const v2parts = currentVersion.split('.').map(Number);
 
