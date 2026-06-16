@@ -533,21 +533,7 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
                           await window.shokai?.auth?.loginBeta?.();
                         }}
                       >
-                        {t("settings.account.loginWithAniList")} (Beta)
-                      </DreamButton>
-                      <div style={{ display: 'flex', alignItems: 'center', margin: '4px 0', opacity: 0.3, width: "100%" }}>
-                        <div style={{ flex: 1, height: 1, background: '#fff' }} />
-                        <span style={{ margin: '0 12px', fontSize: 12, textTransform: 'uppercase' }}>OR</span>
-                        <div style={{ flex: 1, height: 1, background: '#fff' }} />
-                      </div>
-                      <DreamButton
-                        variant="secondary"
-                        fullWidth
-                        onClick={async () => {
-                          await window.shokai?.auth?.login?.();
-                        }}
-                      >
-                        Legacy Login (Advanced)
+                        {t("settings.account.loginWithAniList")}
                       </DreamButton>
                     </div>
                   ) : (

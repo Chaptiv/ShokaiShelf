@@ -635,7 +635,7 @@ async function assertAuthenticated() {
 
 // ── Compatibility shims for older callers (e.g. Sidebar) ─────────────────
 export async function loginAniList(): Promise<void> {
-  await window.shokai?.auth?.login?.();
+  await window.shokai?.auth?.loginBeta?.();
 }
 
 export async function loginAniListBeta(): Promise<void> {

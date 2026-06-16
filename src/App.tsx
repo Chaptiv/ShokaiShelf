@@ -547,38 +547,7 @@ function LoginRequired({ onRetry }: { onRetry: () => void }) {
             onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.02)"}
             onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
           >
-            {t('login.signIn')} (Beta)
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0', opacity: 0.3, width: "100%", maxWidth: "300px" }}>
-            <div style={{ flex: 1, height: 1, background: '#fff' }} />
-            <span style={{ margin: '0 12px', fontSize: 12, textTransform: 'uppercase' }}>OR</span>
-            <div style={{ flex: 1, height: 1, background: '#fff' }} />
-          </div>
-
-          <button
-            onClick={() => window.shokai?.auth?.login?.()}
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              borderRadius: 12,
-              padding: "12px 24px",
-              fontWeight: 600,
-              cursor: "pointer",
-              fontSize: 14,
-              color: "rgba(255,255,255,0.8)",
-              transition: "all 0.2s",
-              width: "100%",
-              maxWidth: "300px"
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-            }}
-          >
-            Legacy Login (Advanced)
+            {t('login.signIn')}
           </button>
           <button
             onClick={onRetry}

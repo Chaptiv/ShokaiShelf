@@ -630,15 +630,8 @@ ipcMain.handle("rec:setModel", (_e, userId, model) => {
 
 /* --------------------- IPC: APP SETUP --------------------- */
 ipcMain.handle("app:needsSetup", async () => {
-  // Beta login (Implicit Grant) doesn't store client_id/client_secret,
-  // so if we already have a valid access_token, setup is never needed.
-  const access_token =
-    store.get("anilist.access_token") ||
-    (store.get("anilist")?.access_token ?? "");
-  if (access_token) return false;
-
-  const { client_id, client_secret } = cfg();
-  return !client_id || !client_secret;
+  // Legacy login setup is removed, so setup is never needed.
+  return false;
 });
 
 ipcMain.handle("setup:save", async (_e, { client_id, client_secret, redirect_uri }) => {

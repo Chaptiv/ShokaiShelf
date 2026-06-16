@@ -80,7 +80,6 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
     const [direction, setDirection] = useState(1);
 
     // Data State
-    const [setupData, setSetupData] = useState({ clientId: '', clientSecret: '', redirectUri: 'http://127.0.0.1:43210/callback' });
     const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
     const [dislikedGenres, setDislikedGenres] = useState<string[]>([]); // Not exposed in UI for now to keep flow simple, or maybe split genre step?
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -88,8 +87,7 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
 
     // Computed Steps mapping
     // 0: Logo
-    // 1: Setup
-    // 2: Login
+    // 1: Login
     // 3: Genres
     // 4: Tags
     // 5: Anime
@@ -102,11 +100,10 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
         while (true) {
             let skipped = false;
             if (next === 1 && !initialState.needsLogin) { next += dir; skipped = true; }
-            if (next === 1.5) { next += dir; skipped = true; } // Internal step, skip in normal flow
-            if (next === 2) { next += dir; skipped = true; } // WaitLoginStep is internal to legacy path
+            if (next === 1.5 || next === 2) { next += dir; skipped = true; }
             if ((next >= 3 && next <= 5) && !initialState.needsColdStart) {
                 // If cold start not needed, jump over all cold start steps
-                next = dir === 1 ? 6 : 2;
+                next = dir === 1 ? 6 : 1;
                 skipped = true;
             }
             if (!skipped) break;
@@ -145,9 +142,8 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
         // Can't go back before start of interactive flow
         // Find first interactive step
         let startStep = 1;
-        if (!initialState.needsSetup) startStep = 2;
-        if (!initialState.needsSetup && !initialState.needsLogin) startStep = 3;
-        if (!initialState.needsSetup && !initialState.needsLogin && !initialState.needsColdStart) startStep = 6;
+        if (!initialState.needsLogin) startStep = 3;
+        if (!initialState.needsLogin && !initialState.needsColdStart) startStep = 6;
 
         if (step <= startStep) return; // Can't go back further
 
@@ -226,9 +222,7 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
                                         transition={{ duration: 0.3 }}
                                         style={{ width: '100%', height: '100%', overflowY: 'auto' }}
                                     >
-                                        {step === 1 && <LoginChoiceStep onNext={advance} onAdvanced={() => { setDirection(1); setStep(1.5); }} t={t} />}
-                                        {step === 1.5 && <SetupStep data={setupData} setData={setSetupData} onNext={() => { setDirection(1); setStep(2); }} onBack={() => { setDirection(-1); setStep(1); }} t={t} />}
-                                        {step === 2 && <WaitLoginStep onNext={advance} t={t} />}
+                                        {step === 1 && <LoginStep onNext={advance} t={t} />}
                                         {step === 3 && <GenreStep selected={selectedGenres} setSelected={setSelectedGenres} onNext={advance} onBack={back} onSkip={skipColdStart} t={t} />}
                                         {step === 4 && <TagStep selected={selectedTags} setSelected={setSelectedTags} onNext={advance} onBack={back} onSkip={skipColdStart} t={t} />}
                                         {step === 5 && <AnimeStep selected={selectedAnime} setSelected={setSelectedAnime} onNext={advance} onBack={back} onSkip={skipColdStart} t={t} />}
@@ -245,96 +239,12 @@ export default function FirstTimeExperience({ onComplete, initialState }: FirstT
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SETUP STEP (Legacy/Advanced)
+// LOGIN STEP
 // ─────────────────────────────────────────────────────────────────────────────
-function SetupStep({ data, setData, onNext, onBack, t }: any) {
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-    const [showHelp, setShowHelp] = useState(false);
-
-    const handleSave = async () => {
-        if (!data.clientId || !data.clientSecret) {
-            setError(t('setup.credentialsRequired'));
-            return;
-        }
-        setSaving(true);
-        try {
-            await (window as any).shokai.setup.save({
-                client_id: data.clientId,
-                client_secret: data.clientSecret,
-                redirect_uri: data.redirectUri
-            });
-            onNext();
-        } catch (e: any) {
-            setError(e.message || 'Error saving credentials');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <CenteredLayout title={t('setup.title')} subtitle={t('setup.subtitle')}>
-            <div style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
-                <Input
-                    label={t('setup.clientId')}
-                    value={data.clientId}
-                    onChange={(e: any) => setData({ ...data, clientId: e.target.value })}
-                    placeholder="1234"
-                    helpIcon={true}
-                    onHelpToggle={() => setShowHelp(!showHelp)}
-                />
-                <AnimatePresence>
-                    {showHelp && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            style={{
-                                background: 'rgba(30, 41, 59, 0.95)',
-                                border: '1px solid rgba(0, 212, 255, 0.3)',
-                                borderRadius: 12,
-                                padding: 16,
-                                marginBottom: 16,
-                                marginTop: -4,
-                                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                                zIndex: 10,
-                                position: 'relative'
-                            }}
-                        >
-                            <h4 style={{ margin: '0 0 12px 0', fontSize: 14, color: '#00d4ff' }}>{t('setup.howToGetId')}</h4>
-                            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)' }}>
-                                <li>{t('setup.instructions.step1')} (<a href="https://anilist.co/settings/developer" target="_blank" rel="noreferrer" style={{ color: '#00d4ff' }}>Link</a>)</li>
-                                <li>{t('setup.instructions.step2')}</li>
-                                <li>{t('setup.instructions.step3')}</li>
-                                <li>{t('setup.instructions.step4')}</li>
-                                <li>{t('setup.instructions.step5')}</li>
-                            </ol>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                <div style={{ height: 16 }} />
-                <Input label={t('setup.clientSecret')} value={data.clientSecret} onChange={(e: any) => setData({ ...data, clientSecret: e.target.value })} type="password" placeholder="...secret..." />
-
-                {error && <div style={{ color: '#ff6b6b', marginTop: 16, fontSize: 13, textAlign: 'center' }}>{error}</div>}
-
-
-                <div style={{ marginTop: 32, display: 'flex', gap: 12 }}>
-                    <Button onClick={onBack} secondary>{t('ftue.back')}</Button>
-                    <Button onClick={handleSave} loading={saving} fluid primary>{t('setup.saveAndContinue')}</Button>
-                </div>
-            </div>
-        </CenteredLayout>
-    );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LOGIN CHOICE STEP (New Beta Flow)
-// ─────────────────────────────────────────────────────────────────────────────
-function LoginChoiceStep({ onNext, onAdvanced, t }: any) {
+function LoginStep({ onNext, t }: any) {
     const [waiting, setWaiting] = useState(false);
 
-    const handleBetaLogin = async () => {
+    const handleLogin = async () => {
         setWaiting(true);
         (window as any).shokai.auth.loginBeta();
     };
@@ -357,73 +267,10 @@ function LoginChoiceStep({ onNext, onAdvanced, t }: any) {
             <div style={{ width: '100%', maxWidth: 400, textAlign: 'center' }}>
                 {!waiting ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <Button onClick={handleBetaLogin} primary size="large" fluid>
-                            {t('login.signIn')} (Beta)
+                        <Button onClick={handleLogin} primary size="large" fluid>
+                            {t('login.signIn')}
                         </Button>
-                        <p style={{ fontSize: 13, opacity: 0.6, marginTop: 4, marginBottom: 4 }}>
-                            No setup required. Fast and easy.
-                        </p>
-
-                        <div style={{ display: 'flex', alignItems: 'center', margin: '16px 0', opacity: 0.3 }}>
-                            <div style={{ flex: 1, height: 1, background: '#fff' }} />
-                            <span style={{ margin: '0 12px', fontSize: 12, textTransform: 'uppercase' }}>OR</span>
-                            <div style={{ flex: 1, height: 1, background: '#fff' }} />
-                        </div>
-
-                        <Button onClick={onAdvanced} secondary fluid>
-                            Legacy Login (Advanced)
-                        </Button>
-                        <p style={{ fontSize: 13, opacity: 0.6, marginTop: 4 }}>
-                            Provide your own AniList API Client ID & Secret limit.
-                        </p>
                     </div>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                        <div className="spinner" style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#00d4ff', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                        <span style={{ opacity: 0.6 }}>{t('ftue.waitingForAuth')}</span>
-                        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                        <button onClick={() => setWaiting(false)} style={{ background: 'transparent', border: 'none', color: '#00d4ff', marginTop: 16, cursor: 'pointer', textDecoration: 'underline' }}>
-                            {t('login.checkAgain')}
-                        </button>
-                    </div>
-                )}
-            </div>
-        </CenteredLayout>
-    );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WAIT STEP (For Legacy Flow after Setup)
-// ─────────────────────────────────────────────────────────────────────────────
-function WaitLoginStep({ onNext, t }: any) {
-    const [waiting, setWaiting] = useState(false);
-
-    const handleLogin = async () => {
-        setWaiting(true);
-        // Start login flow
-        (window as any).shokai.auth.login();
-    };
-
-    // Listen for auth updates
-    useEffect(() => {
-        if (!waiting) return;
-
-        const off = (window as any).shokai.auth.onUpdated(async () => {
-            const status = await (window as any).shokai.status();
-            if (status.loggedIn) {
-                onNext();
-            }
-        });
-        return () => off && off();
-    }, [waiting, onNext]);
-
-    return (
-        <CenteredLayout title={t('login.connectTitle')} subtitle={t('login.connectDescription')}>
-            <div style={{ textAlign: 'center' }}>
-                {!waiting ? (
-                    <Button onClick={handleLogin} primary size="large">
-                        {t('login.signIn')}
-                    </Button>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
                         <div className="spinner" style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#00d4ff', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
