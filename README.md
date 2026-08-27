@@ -33,7 +33,7 @@
 
 ShokaiShelf is a desktop anime tracker that syncs with [AniList](https://anilist.co) and gives you **personalized recommendations that are calculated entirely on your machine** — no data ever leaves your computer. Browse your library, track what you're watching, discover your next obsession, and flex your stats, all from one app with a glassmorphism UI that actually looks good.
 
-> **Status:** Public Beta (v0.2.3 "NetRec Dream")
+> **Status:** Public Beta (v0.2.4 "NetRec Dream")
 > Available for **Windows**, **macOS**, and **Linux**.
 
 ---
@@ -89,15 +89,6 @@ Show your friends what you're watching, which episode you're on, and how much ti
 ### Native Notifications
 A background service watches for new episodes of titles in your "Watching" and "Planning" lists and sends you native OS notifications. Fully configurable check intervals (10-120 min) and lookback windows.
 
-### Achievements (Beta)
-A gamification layer that tracks your viewing habits and awards badges for milestones. Because anime needs a meta-game.
-
-### Echo / Wrapped (Beta)
-A statistics page with monthly and yearly viewing summaries, fun facts about your habits, and shareable images you can export.
-
-### Local Scrobbler (Beta)
-Automatically detects media playback in **VLC** and **MPC-HC** and syncs your progress to AniList. No manual episode tracking needed.
-
 ### Auto-Updater
 Future updates are delivered automatically via GitHub Releases. Just launch the app and stay up to date.
 
@@ -125,16 +116,8 @@ Head to the [Releases page](https://github.com/Chaptiv/ShokaiShelf/releases) and
 ### First-Time Setup
 
 1. **Launch ShokaiShelf** — The ColdStart Wizard will guide you through the initial setup.
-2. **Create AniList API Credentials:**
-   - Go to [AniList Settings > Developer](https://anilist.co/settings/developer)
-   - Click **"Create New Client"**
-   - Set the **Redirect URL** to:
-     ```
-     http://127.0.0.1:43210/callback
-     ```
-   - Copy the **Client ID** and **Client Secret**
-3. **Enter your credentials** in the wizard and log in.
-4. Your library will sync automatically. Recommendations start building from your first session.
+2. **Log in with AniList** — click Sign In and authorize ShokaiShelf in your browser. No API credentials to create or manage.
+3. Your library will sync automatically. Recommendations start building from your first session.
 
 ---
 
@@ -236,9 +219,7 @@ ShokaiShelf/
 │   ├── components/             # Reusable UI components
 │   ├── logic/
 │   │   ├── netrecDream/        # NetRec Dream V4 engine
-│   │   ├── netrecV3/           # NetRec V3 (legacy fallback)
-│   │   ├── wrapped/            # Echo / Wrapped statistics
-│   │   └── achievements/       # Achievement system
+│   │   └── netrecV3/           # NetRec V3 (legacy fallback)
 │   ├── api/                    # AniList GraphQL client
 │   ├── shingen/                # Design system (theme, sidebar, tokens)
 │   ├── hooks/                  # Custom React hooks
@@ -249,9 +230,7 @@ ShokaiShelf/
 │   ├── preload.ts              # Context bridge
 │   ├── notificationEngine.ts   # Background episode notifications
 │   ├── discord.ts              # Discord Rich Presence
-│   ├── scrobbler.ts            # Video player detection
 │   └── offlineStore.ts         # Offline persistence
-├── miru-extension/             # Browser extension (experimental)
 ├── build/                      # App icons & build assets
 └── electron-builder.json5      # Packaging configuration
 ```
@@ -262,7 +241,6 @@ ShokaiShelf/
 
 This is a public beta. Things might break. Here's what is currently known:
 
-- **Scrobbler** — May misidentify some video game footage (e.g., Dark Souls) as anime playback.
 - **Notifications** — Desktop notifications may appear as "Electron.App.ShokaiShelf" without the anime thumbnail.
 - **Social Tab** — Global activity feed may show "Unknown" status for some entries.
 - **Windows Installer** — Progress bar may briefly display inverted during installation.

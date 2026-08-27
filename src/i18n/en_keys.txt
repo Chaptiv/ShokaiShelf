@@ -1,10 +1,8 @@
-achievements
 boot
 coldStart
 common
 composer
 dashboard
-echo
 explain
 feed
 feedback
@@ -23,15 +21,10 @@ nav
 onboarding
 profileInsights
 recommendations
-scrobbler
-scrobblerDebug
-scrobblerToast
 search
 settings
-setup
 smartContext
 social
 status
 ui
 updater
-wrapped

@@ -4,7 +4,7 @@ import tokens from "@shingen/tokens";
 import { logoutAniList } from "@api/anilist";
 import logo from "../assets/logo.png";
 
-type PageKey = "home" | "feed" | "search" | "library" | "settings" | "echo" | "achievements";
+type PageKey = "home" | "feed" | "search" | "library" | "settings";
 
 type Props = {
   page: PageKey;
@@ -148,12 +148,6 @@ export default function Sidebar({ page, setPage, authed, username, avatar }: Pro
               {authed ? (username || t('nav.profile')) : t('nav.notLoggedIn')}
             </div>
             <hr style={{ border: 0, borderTop: "1px solid rgba(0,212,255,0.1)", margin: "4px 8px" }} />
-            <MenuBtn onClick={() => { setMenuOpen(false); setPage("echo"); }} icon={<EchoIcon />}>
-              Echo
-            </MenuBtn>
-            <MenuBtn onClick={() => { setMenuOpen(false); setPage("achievements"); }} icon={<AchievementIcon />}>
-              {t('nav.achievements')}
-            </MenuBtn>
             <MenuBtn onClick={() => { setMenuOpen(false); setPage("settings"); }} icon={<SettingsIcon />}>
               {t('nav.settings')}
             </MenuBtn>
@@ -346,28 +340,6 @@ function SocialIcon() {
       <path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
       <circle cx="17" cy="11" r="3" />
       <path d="M21 21v-2a3 3 0 00-3-3h-1" />
-    </svg>
-  );
-}
-
-function EchoIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 5a7 7 0 0 1 7 7" />
-      <path d="M12 5a7 7 0 0 0-7 7" />
-      <path d="M12 2a10 10 0 0 1 10 10" />
-      <path d="M12 2a10 10 0 0 0-10 10" />
-      <path d="M12 19v3" />
-    </svg>
-  );
-}
-
-function AchievementIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="8" r="6" />
-      <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" />
     </svg>
   );
 }

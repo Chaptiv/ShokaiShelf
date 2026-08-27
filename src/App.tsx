@@ -9,16 +9,11 @@ const Search = lazy(() => import("@pages/Search_dream"));
 const Library = lazy(() => import("@pages/Library_dream"));
 const Social = lazy(() => import("@pages/Social_dream"));
 const Settings = lazy(() => import("@pages/Settings"));
-const Echo = lazy(() => import("@pages/Echo"));
-const Achievements = lazy(() => import("@pages/Achievements"));
-import ScrobblerToast from "@components/ScrobblerToast";
 import UpdateBanner from "@components/UpdateBanner";
 import RateLimitToast from "@components/RateLimitToast";
 import FirstTimeExperience from "@components/FirstTimeExperience";
-import type { ScrobblerCandidate } from "../electron/scrobbler";
 import * as anilistAPI from "@api/anilist";
 import * as netrecV3 from "@logic/netrecV3";
-import { findBestMatch } from "@logic/scrobble-matcher";
 import { checkAndMigrate, getMigrationStatus } from "@logic/netrecDream/migration";
 import { createDreamEngine } from "@logic/netrecDream";
 import { needsColdStart } from "@logic/preferences-store";
@@ -37,7 +32,7 @@ async function safeStatus(): Promise<any> {
   return Promise.race([window.shokai.status(), t]);
 }
 
-type PageKey = "home" | "feed" | "search" | "library" | "social" | "settings" | "echo" | "achievements";
+type PageKey = "home" | "feed" | "search" | "library" | "social" | "settings";
 
 
 
@@ -303,180 +298,6 @@ function Onboarding({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ───────────────── Setup ───────────────── */
-function SetupScreen() {
-  const { t } = useTranslation();
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
-  const redirectUri = "http://127.0.0.1:43210/callback";
-  const [saved, setSaved] = useState(false);
-  const [err, setErr] = useState("");
-
-  const onSave = async () => {
-    setErr("");
-    if (!clientId.trim() || !clientSecret.trim()) {
-      setErr(t('setup.credentialsRequired'));
-      return;
-    }
-    await window.shokai?.setup?.save({
-      client_id: clientId.trim(),
-      client_secret: clientSecret.trim(),
-      redirect_uri: redirectUri,
-    });
-    localStorage.setItem("shokai:firstRun", "1");
-    setSaved(true);
-  };
-
-  return (
-    <div
-      style={{
-        height: "100vh",
-        background: "radial-gradient(circle at top, #101624 0%, #060912 55%, #060912 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "Inter, system-ui, sans-serif",
-        padding: 16,
-      }}
-    >
-      <div
-        style={{
-          width: 460,
-          background: "rgba(7,10,16,0.65)",
-          border: "1px solid rgba(0,212,255,0.25)",
-          borderRadius: 18,
-          backdropFilter: "blur(8px)",
-          boxShadow: "0 20px 55px rgba(0,0,0,0.4)",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ padding: "18px 20px 10px 20px", borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 10,
-                background: "linear-gradient(140deg, #00d4ff 0%, #5a6fff 90%)",
-                display: "grid",
-                placeItems: "center",
-                fontWeight: 700,
-                fontSize: 14,
-                color: "#04070f",
-              }}
-            >
-              S
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{t('setup.title')}</div>
-              <div style={{ fontSize: 11, color: "rgba(221,235,255,0.55)" }}>{t('setup.subtitle')}</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ padding: 20, color: "#fff" }}>
-          <p style={{ marginTop: 0, marginBottom: 14, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-            {t('setup.enterCredentials')}
-          </p>
-
-          <label style={labelStyle}>{t('setup.clientId')}</label>
-          <input
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            placeholder={t('setup.clientIdPlaceholder')}
-            style={inputStyle}
-          />
-
-          <label style={labelStyle}>{t('setup.clientSecret')}</label>
-          <input
-            value={clientSecret}
-            onChange={(e) => setClientSecret(e.target.value)}
-            placeholder={t('setup.clientSecretPlaceholder')}
-            style={inputStyle}
-            type="password"
-          />
-
-          <label style={labelStyle}>{t('setup.redirectUri')}</label>
-          <input value={redirectUri} readOnly style={{ ...inputStyle, opacity: 0.6, cursor: "not-allowed" }} />
-
-          {err && (
-            <div
-              style={{
-                background: "rgba(255,76,76,0.12)",
-                border: "1px solid rgba(255,76,76,0.3)",
-                borderRadius: 10,
-                padding: "6px 9px",
-                fontSize: 12,
-                marginTop: 8,
-              }}
-            >
-              {err}
-            </div>
-          )}
-
-          {saved ? (
-            <div style={{ marginTop: 14, fontSize: 12, color: "#a8ffdb" }}>
-              {t('setup.configSaved')}{" "}
-              <button
-                onClick={() => window.location.reload()}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#fff",
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                  fontSize: 12,
-                }}
-              >
-                {t('setup.reloadApp')}
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={onSave}
-              style={{
-                width: "100%",
-                marginTop: 16,
-                background: "linear-gradient(120deg, #00d4ff 0%, #367fff 100%)",
-                border: "none",
-                borderRadius: 10,
-                padding: "9px 12px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {t('setup.saveAndContinue')}
-            </button>
-          )}
-
-          <p style={{ marginTop: 14, fontSize: 11, opacity: 0.55, lineHeight: 1.5 }}>
-            {t('setup.publicBuildsNote')}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 11,
-  textTransform: "uppercase",
-  letterSpacing: ".04em",
-  opacity: 0.7,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "rgba(2,4,8,0.35)",
-  border: "1px solid rgba(175,214,255,0.08)",
-  borderRadius: 8,
-  padding: "7px 9px",
-  color: "#fff",
-  outline: "none",
-  margin: "6px 0 14px 0",
-  fontSize: 13,
-};
-
 /* ───────────────── Login-Required ───────────────── */
 function LoginRequired({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
@@ -672,7 +493,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   const [showFTUE, setShowFTUE] = useState(false);
-  const [ftueState, setFtueState] = useState({ needsSetup: false, needsLogin: false, needsColdStart: false });
+  const [ftueState, setFtueState] = useState({ needsLogin: false, needsColdStart: false });
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [avatar, setAvatar] = useState(""); // avatar
@@ -680,9 +501,6 @@ export default function App() {
   const [engineReady, setEngineReady] = useState(true);
   const [migrating, setMigrating] = useState(false);
   const [dashboardLoading, setDashboardLoading] = useState(false);
-  const [scrobblerCandidate, setScrobblerCandidate] = useState<ScrobblerCandidate | null>(null);
-  const [miruScrobble, setMiruScrobble] = useState<any>(null);
-  const [lastScrobbledUrl, setLastScrobbledUrl] = useState<string | null>(null);
   const [userLibrary, setUserLibrary] = useState<any[]>([]);
 
 
@@ -745,25 +563,6 @@ export default function App() {
     devLog("=== REFRESH START ===");
 
     try {
-      setBootStatus(t('boot.checkingConfig'));
-      devLog("Calling needsSetup...");
-
-      const mustSetup = await Promise.race([
-        window.shokai!.app!.needsSetup!(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("needsSetup timeout")), 5000))
-      ]);
-
-      devLog("needsSetup result:", mustSetup);
-
-      if (mustSetup) {
-        devLog("Setup required, triggering FTUE");
-        setFtueState({ needsSetup: true, needsLogin: true, needsColdStart: true });
-        setShowFTUE(true);
-        setLoggedIn(false);
-        setLoading(false);
-        return;
-      }
-
       setBootStatus(t('boot.connecting'));
       devLog("Calling status...");
 
@@ -778,7 +577,7 @@ export default function App() {
         devLog("Not logged in, showing FTUE login step");
         // Always show FTUE for login — cold start + tour already done if ftueCompleted
         const ftueDone = localStorage.getItem("shokai:ftueCompleted") === "true";
-        setFtueState({ needsSetup: false, needsLogin: true, needsColdStart: !ftueDone });
+        setFtueState({ needsLogin: true, needsColdStart: !ftueDone });
         setShowFTUE(true);
         setLoggedIn(false);
         setLoading(false);
@@ -799,7 +598,7 @@ export default function App() {
         setUsername(currentUserName);
         setAvatar(me?.avatar?.large || "");
 
-        // Load library for smart scrobbling (needs me.id, so sequential)
+        // Load library for cold-start detection (needs me.id, so sequential)
         if (me?.id) {
           const listsData = await anilistAPI.userLists(me.id);
           setUserLibrary(listsData?.lists || []);
@@ -827,7 +626,7 @@ export default function App() {
 
       if (needsCold) {
         devLog("Showing cold start via FTUE");
-        setFtueState({ needsSetup: false, needsLogin: false, needsColdStart: true });
+        setFtueState({ needsLogin: false, needsColdStart: true });
         setShowFTUE(true);
         return;
       }
@@ -835,14 +634,14 @@ export default function App() {
       // Check for first run flag regarding Onboarding tour
       const first = localStorage.getItem("shokai:firstRun");
       if (first === "1") {
-        setFtueState({ needsSetup: false, needsLogin: false, needsColdStart: false }); // All false = Tour
+        setFtueState({ needsLogin: false, needsColdStart: false }); // All false = Tour
         setShowFTUE(true);
         localStorage.setItem("shokai:firstRun", "0");
       }
     } catch (error) {
       logError("REFRESH ERROR:", error);
       // On error: show login screen as fallback
-      setFtueState({ needsSetup: false, needsLogin: true, needsColdStart: false });
+      setFtueState({ needsLogin: true, needsColdStart: false });
       setLoggedIn(false);
       setLoading(false);
     }
@@ -874,149 +673,12 @@ export default function App() {
       library: 'Organizing the collection',
       social: 'Touching grass',
       settings: 'Tweaking the settings',
-      echo: 'Reviewing the Echo',
-      achievements: 'Checking achievements',
     };
     (window as any).shokai.discord.setActivity({
       title: 'ShokaiShelf',
       state: activities[page],
     });
   }, [page, hasBridge]);
-
-  // Scrobbler detection listener
-  useEffect(() => {
-    if (!hasBridge || !(window as any).shokai?.scrobbler) return;
-    const unsub = (window as any).shokai.scrobbler.onDetection(async (candidate: ScrobblerCandidate) => {
-      // Update Discord RPC with anime being watched
-      if (candidate.cleanTitle && (window as any).shokai?.discord) {
-        const episodeText = candidate.episode ? ` - Episode ${candidate.episode}` : '';
-        (window as any).shokai.discord.setActivity({
-          title: candidate.cleanTitle,
-          state: `Watching${episodeText}`,
-          episode: candidate.episode,
-        });
-        devLog('[App] Discord RPC updated (local):', candidate.cleanTitle);
-      }
-
-      // If we find a very good match in the library, boost confidence
-      if (userLibrary.length > 0) {
-        const match = findBestMatch(candidate.cleanTitle, userLibrary);
-        if (match.media && match.confidence > 0.85) {
-          devLog(`[App] Scrobbler Smart Match: ${candidate.cleanTitle} -> ${match.media.title?.english || match.media.title?.romaji}`);
-
-          // If extremely sure, we could also auto-scrobble here.
-          // But with the local scrobbler (files) a toast is often safer.
-          // We set the media information for the toast anyway.
-          (candidate as any).mediaId = match.media.id;
-          candidate.confidence = Math.max(candidate.confidence, match.confidence);
-        }
-      }
-
-      // Only notify if not extremely sure
-      if (candidate.confidence < 0.9) {
-        (window as any).shokai?.app?.notify({
-          title: t('scrobbler.detected'),
-          body: t('scrobbler.detectedRunning', { title: candidate.cleanTitle, app: candidate.app })
-        });
-      }
-
-      setScrobblerCandidate(candidate);
-    });
-    return () => unsub?.();
-  }, [hasBridge, userLibrary]);
-
-  // Miru scrobble listener
-  useEffect(() => {
-    if (!hasBridge || !(window as any).shokai?.miru) return;
-    const unsub = (window as any).shokai.miru.onScrobble(async (data: any) => {
-      // Ignore if it's the same URL we just handled
-      if (lastScrobbledUrl === data.url && data.progress === 0) return;
-
-      devLog('[App] Miru scrobble:', data);
-
-      // Update Discord RPC with anime being watched
-      if (data.title && (window as any).shokai?.discord) {
-        const episodeText = data.episode ? ` - Episode ${data.episode}` : '';
-        (window as any).shokai.discord.setActivity({
-          title: data.title,
-          state: `Watching${episodeText}`,
-          episode: data.episode,
-        });
-        devLog('[App] Discord RPC updated:', data.title);
-      }
-
-      // Smart Matcher: Try to find ID from Library or Search
-      let mediaId = data.mediaId;
-      let confidence = data.confidence || 0;
-
-      if (!mediaId && userLibrary.length > 0) {
-        const match = findBestMatch(data.title, userLibrary);
-        if (match.media && match.confidence > 0.85) {
-          mediaId = match.media.id;
-          confidence = match.confidence;
-          devLog(`[App] Smart Match (Library): ${data.title} -> ${match.media.title?.english || match.media.title?.romaji} (${Math.round(confidence * 100)}%)`);
-        }
-      }
-
-      // Show toast only for PLAY events (progress = 0)
-      if (data.progress === 0 && !data.completed) {
-        // If we are extremely sure (>92%), skip the toast and scrobble silently
-        if (mediaId && confidence > 0.92) {
-          devLog('[App] High confidence, skipping toast:', data.title);
-          setLastScrobbledUrl(data.url);
-          // We still learn the match in the scrobbler memory
-          (window as any).shokai?.scrobbler?.confirmMatch(data.title, mediaId);
-        } else {
-          // Otherwise we ask the user
-          setMiruScrobble({ ...data, mediaId, confidence });
-          setLastScrobbledUrl(data.url);
-
-          // Send system notification
-          (window as any).shokai?.app?.notify({
-            title: t('scrobbler.detected'),
-            body: t('scrobbler.pleaseConfirmBody', { title: data.title })
-          });
-        }
-      } else if (data.completed || data.progress >= 75) {
-        // Auto-update bei completion (>75% watched)
-        try {
-          const { saveEntry, searchAnime } = await import("./api/anilist");
-
-          // Last resort: If we still have no ID, search globally now
-          if (!mediaId) {
-            const searchResults = await searchAnime(data.title);
-            const match = findBestMatch(data.title, userLibrary, searchResults);
-            if (match.media) {
-              mediaId = match.media.id;
-              confidence = match.confidence;
-            }
-          }
-
-          if (mediaId) {
-            await saveEntry(mediaId, "CURRENT", data.episode);
-            devLog('[App] Auto-updated AniList:', mediaId, 'Episode', data.episode);
-
-            // If we were successful, learn this for the future!
-            (window as any).shokai?.scrobbler?.confirmMatch(data.title, mediaId);
-          } else {
-            // FALLBACK: No match found - User must confirm manually
-            devLog('[App] No match found for 75% event, showing toast:', data.title);
-            setMiruScrobble({ ...data, mediaId: null, confidence: 0 });
-            setLastScrobbledUrl(data.url);
-
-            // System notification
-            (window as any).shokai?.app?.notify({
-              title: t('scrobbler.almostFinished'),
-              body: t('scrobbler.almostFinishedBody', { title: data.title })
-            });
-          }
-        } catch (err) {
-          logError('[App] Auto-update failed:', err);
-        }
-      }
-    });
-    return () => unsub?.();
-  }, [hasBridge, lastScrobbledUrl, userLibrary]);
 
   // no preload
   if (!hasBridge) {
@@ -1107,63 +769,11 @@ export default function App() {
                   </SuspensedPage>
                 </motion.div>
               )}
-              {page === "echo" && (
-                <motion.div key="echo" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <SuspensedPage status={t('common.loading')}>
-                    <Echo />
-                  </SuspensedPage>
-                </motion.div>
-              )}
-              {page === "achievements" && (
-                <motion.div key="achievements" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <SuspensedPage status={t('common.loading')}>
-                    <Achievements />
-                  </SuspensedPage>
-                </motion.div>
-              )}
             </AnimatePresence>
           </div>
         </div>
       </div>
 
-
-      {scrobblerCandidate && (
-        <ScrobblerToast
-          candidate={scrobblerCandidate}
-          onConfirm={(mediaId) => {
-            (window as any).shokai?.scrobbler?.confirmMatch(scrobblerCandidate.cleanTitle, mediaId);
-            setScrobblerCandidate(null);
-          }}
-          onDismiss={() => setScrobblerCandidate(null)}
-        />
-      )}
-
-      {miruScrobble && (
-        <ScrobblerToast
-          candidate={{
-            cleanTitle: miruScrobble.title,
-            episode: miruScrobble.episode,
-            app: miruScrobble.site,
-            confidence: miruScrobble.confidence,
-          }}
-          onConfirm={async (mediaId) => {
-            // Update AniList with episode progress
-            try {
-              const { saveEntry } = await import("./api/anilist");
-              await saveEntry(mediaId, "CURRENT", miruScrobble.episode);
-              devLog('[App] Updated AniList:', mediaId, 'Episode', miruScrobble.episode);
-
-              // Teach the scrobbler!
-              (window as any).shokai?.scrobbler?.confirmMatch(miruScrobble.title, mediaId);
-
-            } catch (err) {
-              logError('[App] Failed to update AniList:', err);
-            }
-            setMiruScrobble(null);
-          }}
-          onDismiss={() => setMiruScrobble(null)}
-        />
-      )}
 
       {/* Dashboard Loading Overlay - Keep BootLoader visible while dashboard loads */}
       {dashboardLoading && page === "home" && (

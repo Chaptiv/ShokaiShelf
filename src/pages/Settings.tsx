@@ -5,11 +5,10 @@ import { changeLanguage, getCurrentLanguage } from "../i18n";
 import { viewerCached, subscribeAuth } from "@api/anilist";
 import {
   MdSettings, MdPerson,
-  MdTune, MdVideocam, MdNotifications,
+  MdTune, MdNotifications,
   MdLanguage, MdCheck, MdVideogameAsset
 } from "react-icons/md";
 import FineTuningSettings from "@components/FineTuningSettings";
-import Settings_Scrobbler from "./Settings_Scrobbler";
 import Settings_Notifications from "./Settings_Notifications";
 import Settings_Discord from "./Settings_Discord";
 import { useSettings } from "../state/SettingsContext";
@@ -183,7 +182,7 @@ const DreamButton: React.FC<DreamButtonProps> = ({
 // ============================================================================
 // TYPES
 // ============================================================================
-type TabId = "general" | "account" | "recommendations" | "scrobbler" | "notifications" | "discord";
+type TabId = "general" | "account" | "recommendations" | "notifications" | "discord";
 
 interface TabConfig {
   id: TabId;
@@ -216,7 +215,6 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
     { id: "general", labelKey: "settings.tabs.general", Icon: MdSettings, color: DREAM.colors.primaryAccent },
     { id: "account", labelKey: "settings.tabs.account", Icon: MdPerson, color: DREAM.colors.primaryAccent },
     { id: "recommendations", labelKey: "settings.tabs.recommendations", Icon: MdTune, color: DREAM.colors.secondaryAccent },
-    { id: "scrobbler", labelKey: "settings.tabs.scrobbler", Icon: MdVideocam, color: DREAM.colors.success },
     { id: "discord", labelKey: "settings.tabs.discord", Icon: MdVideogameAsset, color: DREAM.colors.secondaryAccent },
     { id: "notifications", labelKey: "settings.tabs.notifications", Icon: MdNotifications, color: DREAM.colors.warning },
   ];
@@ -639,11 +637,6 @@ export default function Settings({ onLoggedIn }: { onLoggedIn?: () => void }) {
                   </ul>
                 </SettingsCard>
               </div>
-            )}
-
-            {/* Scrobbler Tab */}
-            {activeTab === "scrobbler" && (
-              <Settings_Scrobbler />
             )}
 
             {/* Discord Tab */}

@@ -9,19 +9,13 @@ contextBridge.exposeInMainWorld("shokai", {
     delete: (key) => ipcRenderer.invoke("store:delete", key),
   },
 
-  // App-Status & Setup
+  // App-Status
   app: {
-    needsSetup: () => ipcRenderer.invoke("app:needsSetup"),
     notify: (data) => ipcRenderer.invoke("system:notify", data),
-  },
-
-  setup: {
-    save: (cfg) => ipcRenderer.invoke("setup:save", cfg),
   },
 
   // Auth
   auth: {
-    login: () => ipcRenderer.invoke("auth:login"),
     loginBeta: () => ipcRenderer.invoke("auth:login-beta"),
     logout: () => ipcRenderer.invoke("auth:logout"),
     onUpdated: (cb) => {
@@ -50,21 +44,6 @@ contextBridge.exposeInMainWorld("shokai", {
       ipcRenderer.invoke("rec:setModel", userId, model),
   },
 
-  // Scrobbler
-  scrobbler: {
-    getStatus: () => ipcRenderer.invoke("scrobbler:getStatus"),
-    updateConfig: (cfg) => ipcRenderer.invoke("scrobbler:updateConfig", cfg),
-    debugMatch: () => ipcRenderer.invoke("scrobbler:debugMatch"),
-    confirmMatch: (title, mediaId) =>
-      ipcRenderer.invoke("scrobbler:confirmMatch", title, mediaId),
-    removeAlias: (alias) => ipcRenderer.invoke("scrobbler:removeAlias", alias),
-    onDetection: (cb) => {
-      const handler = (_e, data) => cb(data);
-      ipcRenderer.on("scrobbler:detected", handler);
-      return () => ipcRenderer.removeListener("scrobbler:detected", handler);
-    },
-  },
-
   // Discord RPC
   discord: {
     getStatus: () => ipcRenderer.invoke("discord:getStatus"),
@@ -80,28 +59,6 @@ contextBridge.exposeInMainWorld("shokai", {
     checkNow: () => ipcRenderer.invoke("notifications:checkNow"),
     getHistory: () => ipcRenderer.invoke("notifications:getHistory"),
     test: () => ipcRenderer.invoke("notifications:test"),
-  },
-
-  // Achievements
-  achievements: {
-    notify: (achievement) => ipcRenderer.invoke("achievement:notify", achievement),
-  },
-
-  // Miru Extension Bridge
-  miru: {
-    getStatus: () => ipcRenderer.invoke("miru:status"),
-    start: () => ipcRenderer.invoke("miru:start"),
-    stop: () => ipcRenderer.invoke("miru:stop"),
-    onScrobble: (cb) => {
-      const handler = (_e, data) => cb(data);
-      ipcRenderer.on("miru:scrobble", handler);
-      return () => ipcRenderer.removeListener("miru:scrobble", handler);
-    },
-    onConnection: (cb) => {
-      const handler = (_e, data) => cb(data);
-      ipcRenderer.on("miru:connection", handler);
-      return () => ipcRenderer.removeListener("miru:connection", handler);
-    },
   },
 
   // Offline Mode

@@ -5,7 +5,5 @@ login
 media
 nav
 onboarding
-scrobbler
 search
 settings
-setup

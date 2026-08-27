@@ -63,7 +63,6 @@ declare global {
       delete?: (k: string) => Promise<void>;
     };
     auth?: {
-      login?: () => Promise<void>;
       loginBeta?: () => Promise<void>;
       logout?: () => Promise<void>;
       refresh?: () => Promise<string>;
@@ -83,21 +82,8 @@ declare global {
       setActivity: (activity: any) => Promise<any>;
       clearActivity: () => Promise<any>;
     };
-    scrobbler?: {
-      getStatus: () => Promise<any>;
-      updateConfig: (config: any) => Promise<any>;
-      debugMatch: () => Promise<any>;
-      removeAlias: (alias: string) => Promise<any>;
-    };
     app?: {
       notify: (options: { title: string; body: string }) => void;
-      needsSetup?: () => Promise<boolean>;
-    };
-    setup?: {
-      save: (cfg: any) => Promise<any>;
-    };
-    achievements?: {
-      notify: (achievement: any) => Promise<any>;
     };
   }
 

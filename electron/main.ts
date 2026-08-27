@@ -5,7 +5,6 @@ import path from 'node:path'
 import Store from 'electron-store'
 import { NotificationStore } from './notificationStore.js'
 import { NotificationEngine } from './notificationEngine.js'
-import { MiruBridge } from './miruBridge.js'
 import { OfflineStore } from './offlineStore.js'
 import { ShokaiErrorFactory } from './ShokaiErrors.js'
 
@@ -17,7 +16,6 @@ const store = new Store()
 const notificationStore = new NotificationStore()
 const offlineStore = new OfflineStore()
 let notificationEngine: NotificationEngine | null = null
-let miruBridge: MiruBridge | null = null
 
 // The built directory structure
 //
@@ -162,29 +160,6 @@ ipcMain.handle('notifications:getHistory', async () => {
   }
 })
 
-// Achievement notification
-ipcMain.handle('achievement:notify', async (_event, achievement: { name: string; icon: string; description: string }) => {
-  try {
-    if (!Notification.isSupported()) {
-      console.log('[Main] System notifications not supported')
-      return { success: false, error: 'Notifications not supported' }
-    }
-
-    const notification = new Notification({
-      title: `Achievement Unlocked!`,
-      body: `${achievement.icon} ${achievement.name}\n${achievement.description}`,
-      silent: false,
-    })
-
-    notification.show()
-    console.log('[Main] Achievement notification shown:', achievement.name)
-    return { success: true }
-  } catch (err: any) {
-    console.error('[Main] Achievement notification error:', err)
-    return { success: false, error: err.message }
-  }
-})
-
 // Store access (for Renderer Process)
 ipcMain.handle('store:get', async (_event, key) => {
   return store.get(key)
@@ -196,27 +171,6 @@ ipcMain.handle('store:set', async (_event, key, value) => {
 
 ipcMain.handle('store:delete', async (_event, key) => {
   store.delete(key)
-})
-
-// Miru Bridge IPC handlers
-ipcMain.handle('miru:status', async () => {
-  if (!miruBridge) return { running: false, connected: false, port: 9876 }
-  return miruBridge.getStatus()
-})
-
-ipcMain.handle('miru:start', async () => {
-  if (!miruBridge) {
-    miruBridge = new MiruBridge()
-  }
-  const success = miruBridge.start()
-  return { success }
-})
-
-ipcMain.handle('miru:stop', async () => {
-  if (miruBridge) {
-    miruBridge.stop()
-  }
-  return { success: true }
 })
 
 /* ========================================
@@ -445,40 +399,15 @@ ipcMain.handle('offline:processQueueItem', async (_event, id: number, action: st
   }
 })
 
-// Setup Miru Bridge
-function setupMiruBridge() {
-  miruBridge = new MiruBridge()
-  miruBridge.start()
-
-  // Forward scrobble events to renderer
-  miruBridge.onScrobble((data) => {
-    if (win) {
-      win.webContents.send('miru:scrobble', data)
-    }
-  })
-
-  // Log connection changes
-  miruBridge.onConnectionChange((connected) => {
-    console.log(`[Main] Miru extension ${connected ? 'connected' : 'disconnected'}`)
-    if (win) {
-      win.webContents.send('miru:connection', { connected })
-    }
-  })
-}
-
 app.whenReady().then(() => {
   createWindow()
   setupNotifications()
-  setupMiruBridge()
 })
 
 // Cleanup on exit
 app.on('before-quit', () => {
   if (notificationEngine) {
     notificationEngine.stop()
-  }
-  if (miruBridge) {
-    miruBridge.stop()
   }
   notificationStore.close()
   offlineStore.close()

@@ -66,7 +66,6 @@ export const POPULAR_TAGS = [
 interface FirstTimeExperienceProps {
     onComplete: () => void;
     initialState: {
-        needsSetup: boolean;
         needsLogin: boolean;
         needsColdStart: boolean;
     };
