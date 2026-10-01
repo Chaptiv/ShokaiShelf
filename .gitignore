@@ -27,3 +27,4 @@ miru-extension/
 # Internal Documentation
 *.md
 !README.md
+!CHANGELOG.md

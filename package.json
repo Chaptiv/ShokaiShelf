@@ -2,6 +2,7 @@
   "name": "shokaishelf",
   "version": "0.2.4",
   "private": true,
+  "license": "GPL-3.0-only",
   "type": "module",
   "main": "electron/main.js",
   "repository": {

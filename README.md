@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/Chaptiv/ShokaiShelf/releases"><img alt="Version" src="https://img.shields.io/github/v/release/Chaptiv/ShokaiShelf?label=version&color=7c3aed" /></a>
   <a href="https://github.com/Chaptiv/ShokaiShelf/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Chaptiv/ShokaiShelf/total?color=7c3aed" /></a>
-  <a href="#license"><img alt="License" src="https://img.shields.io/badge/license-see%20below-7c3aed" /></a>
+  <a href="#license"><img alt="License: GPL 3.0" src="https://img.shields.io/badge/license-GPL%203.0-7c3aed" /></a>
   <a href="https://github.com/Chaptiv/ShokaiShelf/issues"><img alt="Issues" src="https://img.shields.io/github/issues/Chaptiv/ShokaiShelf?color=7c3aed" /></a>
 </p>
 
@@ -31,10 +31,23 @@
 
 ## What is ShokaiShelf?
 
-ShokaiShelf is a desktop anime tracker that syncs with [AniList](https://anilist.co) and gives you **personalized recommendations that are calculated entirely on your machine** — no data ever leaves your computer. Browse your library, track what you're watching, discover your next obsession, and flex your stats, all from one app with a glassmorphism UI that actually looks good.
+ShokaiShelf is a desktop anime tracker that syncs with [AniList](https://anilist.co) and gives you **personalized recommendations that are calculated entirely on your machine** — recommendation scoring and your Dream profile stay on your machine. AniList requests and list updates still use its online API. Browse your library, track what you're watching, discover your next obsession, and flex your stats, all from one app with a glassmorphism UI that actually looks good.
 
 > **Status:** Public Beta (v0.2.4 "NetRec Dream")
-> Available for **Windows**, **macOS**, and **Linux**.
+> Installers target **Windows** and **macOS**. **Linux** is available through a self-build.
+> **License:** [GNU GPL 3.0](LICENSE) (`GPL-3.0-only`).
+
+---
+
+## Current Release — 0.2.4
+
+- **Dashboard startup:** Failed or missing AniList profiles now show an error with a retry action instead of leaving the Dream loading screen running indefinitely.
+- **Bounded loading:** AniList requests time out after 30 seconds. Dashboard initialization has a two-minute limit, and late results cannot replace the timeout screen.
+- **Rate-limit recovery:** Each GraphQL request retries a rate-limit response once, rather than retrying indefinitely.
+- **Dream migration:** Default behavioral metrics use an ES module import so migration also works in the renderer without Node.js `require()`.
+- **Licensing:** ShokaiShelf is licensed under GNU GPL version 3.0.
+
+See [CHANGELOG.md](CHANGELOG.md) for release details. The renderer build and automated startup tests pass; the Windows executable still needs validation on Windows.
 
 ---
 
@@ -70,7 +83,7 @@ ShokaiShelf is a desktop anime tracker that syncs with [AniList](https://anilist
 ## Features
 
 ### NetRec Dream Engine
-The heart of ShokaiShelf. A recommendation engine that learns your taste without sending a single byte to any server.
+The heart of ShokaiShelf. A recommendation engine that scores candidates and maintains your taste profile locally, using anime and library data fetched from AniList.
 
 - **Semantic Clustering** — Groups anime by thematic similarity and analyzes your drop patterns to figure out what you *actually* dislike, not just what you rated low.
 - **Implicit Signal Analysis** — Goes beyond scores. Tracks binge velocity, completion habits, drop forensics (did you drop it after 2 episodes or 20? That means something different), and even your tolerance for older or longer series.
@@ -78,10 +91,10 @@ The heart of ShokaiShelf. A recommendation engine that learns your taste without
 - **Transparent Reasoning** — Every recommendation comes with a confidence score and a human-readable explanation of *why* it was suggested.
 
 ### AniList Integration
-- Full OAuth 2.0 login
+- Browser-based AniList OAuth login
 - Two-way sync of your lists, scores, and progress
 - Push updates back to AniList in real time
-- Automatic token refresh — log in once and forget about it
+- AniList access tokens stored locally through Electron
 
 ### Discord Rich Presence
 Show your friends what you're watching, which episode you're on, and how much time is left — right in your Discord profile.
@@ -89,8 +102,8 @@ Show your friends what you're watching, which episode you're on, and how much ti
 ### Native Notifications
 A background service watches for new episodes of titles in your "Watching" and "Planning" lists and sends you native OS notifications. Fully configurable check intervals (10-120 min) and lookback windows.
 
-### Auto-Updater
-Future updates are delivered automatically via GitHub Releases. Just launch the app and stay up to date.
+### Update Checks
+ShokaiShelf checks GitHub Releases for newer versions and displays an update notification. The update action opens the release page, where you can download and install the new version.
 
 ### UI & Design
 - **Glassmorphism Design** — A full "Dream" design language with frosted glass elements and fluid animations.
@@ -108,10 +121,11 @@ Head to the [Releases page](https://github.com/Chaptiv/ShokaiShelf/releases) and
 
 | Platform    | File |
 |----------   |------|
-| Windows     | `ShokaiShelf-Installer-x.x.x.exe` |
-| macOS ARM   | `ShokaiShelf-Mac-ARM-x.x.x-Installer.dmg` |
-| macOS X64   | `ShokaiShelf-Mac-X64-x.x.x-Installer.dmg` |
-| Linux       | `Not Available, but creatable via self-build` |
+| Windows     | `ShokaiShelf-Installer-0.2.4.exe` |
+| macOS       | `ShokaiShelf-Mac-0.2.4-Installer.dmg` (check the release for architecture availability) |
+| Linux       | Self-build as an AppImage |
+
+For a direct Windows build, run `ShokaiShelf.exe` inside the complete `win-unpacked` folder. Keep its `resources` directory and bundled DLLs beside it.
 
 ### First-Time Setup
 
@@ -150,12 +164,9 @@ Your AniList Data
 
 **Semantic Clustering** groups anime by thematic similarity using tag co-occurrence analysis, then calculates your affinity for each cluster on a scale from -1 to +1. This lets the engine recommend along taste dimensions that go beyond simple genre labels.
 
-**Engine Selection** is automatic:
-- If you have a mature DreamProfile (confidence >= 0.3 or 10+ feedback entries), Dream V4 takes over.
-- New users start with V3 (collaborative filtering + content-based scoring) until enough data is collected.
-- Existing V3 data is automatically migrated to V4 — nothing is lost.
+**Dream V4 is the active engine** for the dashboard and search. It builds on V3's candidate generation and scoring utilities, then adds adaptive Dream profiles and reasoning. Existing V3 data is migrated to a Dream profile during startup.
 
-> All computation happens locally. Your data never leaves your machine.
+> Recommendation computation happens locally. AniList supplies anime and library data and receives the list updates you submit.
 
 ---
 
@@ -163,12 +174,12 @@ Your AniList Data
 
 | Layer | Technology |
 |-------|-----------|
-| **UI Framework** | React 18, Vite 6, TypeScript 5 |
+| **UI Framework** | React 18, Vite 7, TypeScript 5 |
 | **Animations** | Framer Motion |
-| **Desktop Shell** | Electron 40 |
-| **Database** | SQLite (better-sqlite3) |
+| **Desktop Shell** | Electron 44 |
+| **Storage** | electron-store and browser storage; SQLite offline support is currently disabled |
 | **API** | AniList GraphQL |
-| **Integrations** | Discord RPC, WebSocket |
+| **Integrations** | Discord RPC, native notifications |
 | **Security** | DOMPurify (XSS protection) |
 | **i18n** | react-i18next |
 | **Testing** | Vitest, React Testing Library |
@@ -181,9 +192,9 @@ Your AniList Data
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22.13+ (or Node.js 20.19+)
 - npm
-- An AniList account with [Developer credentials](https://anilist.co/settings/developer)
+- An AniList account for login and library synchronization; the configured beta login does not require your own developer credentials
 
 ### Getting Started
 
@@ -208,7 +219,8 @@ npm run dev
 | `npm run build:renderer` | Build the React frontend only |
 | `npm test` | Run the test suite (Vitest) |
 | `npm run lint` | Lint with ESLint |
-| `npm start` | Launch the built Electron app |
+| `npm start` | Launch Electron (tries the dev server, then falls back to `dist`) |
+| `npm run release` | Interactive versioning and release preparation; the custom Windows installer requires the sibling `ShokaiShelf-Installer` project |
 
 ### Project Structure
 
@@ -219,25 +231,27 @@ ShokaiShelf/
 │   ├── components/             # Reusable UI components
 │   ├── logic/
 │   │   ├── netrecDream/        # NetRec Dream V4 engine
-│   │   └── netrecV3/           # NetRec V3 (legacy fallback)
+│   │   └── netrecV3/           # Candidate generation, scoring, cache & queries
 │   ├── api/                    # AniList GraphQL client
 │   ├── shingen/                # Design system (theme, sidebar, tokens)
 │   ├── hooks/                  # Custom React hooks
 │   ├── utils/                  # Utilities (logger, sanitizer)
 │   └── state/                  # React Context (settings)
 ├── electron/                   # Electron main process
-│   ├── main.ts                 # App initialization & IPC handlers
-│   ├── preload.ts              # Context bridge
-│   ├── notificationEngine.ts   # Background episode notifications
-│   ├── discord.ts              # Discord Rich Presence
-│   └── offlineStore.ts         # Offline persistence
+│   ├── main.js                 # Active app entry point & IPC handlers
+│   ├── preload.cjs             # Active context bridge
+│   ├── notificationEngine.js   # Background episode notifications
+│   ├── discord.js              # Discord Rich Presence
+│   └── offlineStore.js         # Offline persistence (currently disabled)
 ├── build/                      # App icons & build assets
-└── electron-builder.json5      # Packaging configuration
+├── electron-builder.json5      # Packaging configuration
+├── CHANGELOG.md                # Release notes
+└── LICENSE                     # GNU GPL version 3.0
 ```
 
 ---
 
-## Known Issues (v0.2.0 Beta)
+## Known Issues (v0.2.4 Beta)
 
 This is a public beta. Things might break. Here's what is currently known:
 
@@ -245,7 +259,9 @@ This is a public beta. Things might break. Here's what is currently known:
 - **Social Tab** — Global activity feed may show "Unknown" status for some entries.
 - **Windows Installer** — Progress bar may briefly display inverted during installation.
 - **Localization** — The "First Dislike" context menu stays in German regardless of the language setting.
-- **Performance** — Initial library scan for 1000+ entries can take significant time on first launch.
+- **Performance** — Initial library scans and AniList rate-limit backoff can take time. Dashboard loading stops after two minutes with a retry action.
+- **Offline Mode** — SQLite offline persistence is disabled in the active Electron entry point. An internet connection is needed to fetch uncached AniList data.
+- **Windows Startup** — Startup error handling and timeouts are covered by automated tests, but the rebuilt executable still needs a Windows smoke test.
 
 Found something else? Please [open an issue](https://github.com/Chaptiv/ShokaiShelf/issues) with screenshots and logs if possible.
 
@@ -266,7 +282,7 @@ Here you see the clear difference. On top is 0.0.5, written in Python, and on th
 <img width="540" height="811" src="https://github.com/user-attachments/assets/cb186af3-9ef4-4ab3-856a-2e29caf9b6fb" />
 
 
-Now, with **ShokaiShelf 0.2.0**, the app is going public for real — not just silently pushed to a GitHub repository, but actually put out there for people to find, try, and (hopefully) break. The recommendation engine has been rebuilt from scratch *again* (NetRec Dream V4), the UI has been overhauled, and there are more features than I ever planned for when this was just a class project.
+The **ShokaiShelf 0.2.x** public beta, currently **0.2.4**, brings the app to a wider audience — not just silently pushed to a GitHub repository, but actually put out there for people to find, try, and (hopefully) break. The recommendation engine has been rebuilt from scratch *again* (NetRec Dream V4), the UI has been overhauled, and there are more features than I ever planned for when this was just a class project.
 
 I'm putting this out here because I believe that with enough feedback, ShokaiShelf can keep growing. If you've made it this far, give it a try — and if something doesn't work, [let me know](https://github.com/Chaptiv/ShokaiShelf/issues). Every bug report, feature request, and piece of feedback matters.
 
@@ -281,33 +297,31 @@ ShokaiShelf 0.0.1 - 0.0.4 (Python)
 ShokaiShelf 0.1.0 (Electron/React/TypeScript + NetRec V2/V3)
         |
         v
-ShokaiShelf 0.2.0 "NetRec Dream" (Public Beta)  <-- You are here
+ShokaiShelf 0.2.0 "NetRec Dream" (Public Beta)
+        |
+        v
+ShokaiShelf 0.2.4 (Startup fixes + GNU GPL 3.0)  <-- You are here
 ```
 
 ---
 
 ## Disclaimer
 
-ShokaiShelf is provided **"as is"**, without warranty of any kind, express or implied. This includes, but is not limited to, warranties of merchantability, fitness for a particular purpose, and non-infringement.
- 
-- The developer is **not responsible** for any data loss, account issues, or unintended behavior that may occur from using this application.
-- ShokaiShelf interacts with third-party services (AniList, Discord) over their public APIs. The developer is **not affiliated with, endorsed by, or responsible for** any of these services or any changes they make to their platforms.
-- Use this software **at your own risk**. This is a beta product — bugs happen.
- 
+ShokaiShelf is provided without warranty, to the extent permitted by applicable law, as described in sections 15 and 16 of the [GNU GPL version 3.0](LICENSE).
+
+ShokaiShelf uses the public APIs of AniList and Discord. It is not affiliated with or endorsed by either service. This is a beta product; bugs and service interruptions may occur.
+
 ---
 
 ## License
 
 **Copyright (c) 2024-2026 Chaptiv.**
 
-ShokaiShelf's source code is available for viewing and contribution. You are welcome to explore the codebase, learn from it, and submit pull requests.
+ShokaiShelf, including its NetRec / AnimeNetRec recommendation engine, is free software licensed under the **GNU General Public License, version 3.0 only** (`GPL-3.0-only`). You may use, study, modify, and redistribute it under the terms of that license.
 
-**However, the following is strictly prohibited:**
+When distributing ShokaiShelf or a modified version, follow the GPL's requirements for license notices and corresponding source code. The complete license text is included in [LICENSE](LICENSE); further information is available from the [GNU GPL 3.0 page](https://www.gnu.org/licenses/gpl-3.0.html).
 
-- Using ShokaiShelf's code or any part of it (including the NetRec / AnimeNetRecs recommendation engine) in another application.
-- Redistributing ShokaiShelf, in whole or in part, under a different name or as a different product.
-
-In short: **look, learn, contribute — but don't copy it into your own app or ship it as something else.**
+Third-party dependencies retain their own licenses.
 
 ---
 

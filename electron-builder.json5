@@ -5,7 +5,7 @@
   "appId": "com.shokaishelf.app",
   "productName": "ShokaiShelf",
   "asar": true,
-  "copyright": "© 2025 Maximilian Erb",
+  "copyright": "© 2024-2026 Maximilian Erb",
 
   "directories": {
     "output": "release/${version}"
@@ -14,7 +14,8 @@
   "files": [
     "dist/**/*",
     "electron/**/*",
-    "package.json"
+    "package.json",
+    "LICENSE"
   ],
 
   "win": {

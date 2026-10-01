@@ -202,7 +202,7 @@ async function buildAndPrepare() {
             return;
         }
 
-        // Copy macOS artifacts (only DMG for 0.2.2.1)
+        // Copy macOS DMG artifacts
         const releaseDir = path.join(projectRoot, 'release', version);
         if (await fs.pathExists(releaseDir)) {
             let count = 0;
@@ -222,7 +222,7 @@ async function buildAndPrepare() {
 
     if (targets.includes('win')) {
         console.log(chalk.cyan('\nBuilding Windows Payload (win-unpacked)...'));
-        // For 0.2.2 we don't need nsis-web auto-updater payload, just the win-unpacked folder
+        // The custom installer wraps the win-unpacked folder instead of an nsis-web payload
         // for the Custom Installer to wrap.
         if (shell.exec(`npx electron-builder --win dir --x64`).code !== 0) {
             console.log(chalk.red('Windows payload build failed!'));
