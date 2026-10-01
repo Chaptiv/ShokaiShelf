@@ -107,6 +107,8 @@
       "logoutConfirm": "Möchtest du dich wirklich komplett abmelden?\n\nDu musst dich danach erneut anmelden."
     },
     "dashboard": {
+    "loadTimeout": "Das Dashboard konnte nicht innerhalb von zwei Minuten geladen werden. Bitte prüfe deine Verbindung und versuche es erneut.",
+    "viewerUnavailable": "Das AniList-Profil konnte nicht geladen werden. Bitte melde dich erneut an.",
       "title": "Dashboard",
       "subtitle": "Hero Banner & Cards",
       "heroBanner": "Hero Banner",

@@ -15,7 +15,7 @@ const ANILIST_API = "https://graphql.anilist.co";
 // QUERY HELPERS
 // ============================================================================
 
-async function query<T>(gql: string, variables: any = {}): Promise<T> {
+async function query<T>(gql: string, variables: any = {}, retryCount = 0): Promise<T> {
   // CRITICAL: Apply rate limiting BEFORE fetch
   await rateLimiter.checkLimit();
 
@@ -26,6 +26,7 @@ async function query<T>(gql: string, variables: any = {}): Promise<T> {
       Accept: "application/json",
     },
     body: JSON.stringify({ query: gql, variables }),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
@@ -34,14 +35,14 @@ async function query<T>(gql: string, variables: any = {}): Promise<T> {
     error.headers = response.headers;
 
     // Handle 429 Rate Limit
-    if (response.status === 429) {
+    if (response.status === 429 && retryCount < 1) {
       const retryAfter = response.headers.get("Retry-After");
       rateLimiter.handle429(retryAfter ? parseInt(retryAfter) : undefined);
       logError("[Query] 429 Rate Limit Hit - backing off");
 
       // Retry after backoff
       await rateLimiter.checkLimit();
-      return query<T>(gql, variables);
+      return query<T>(gql, variables, retryCount + 1);
     }
 
     throw error;

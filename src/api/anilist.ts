@@ -212,7 +212,7 @@ export function subscribeAuth(cb: () => void) {
 
 /* ───────────────── GQL-Helper ───────────────── */
 
-async function gql<T = any>(query: string, variables?: Record<string, any>, requireAuth = false): Promise<T> {
+async function gql<T = any>(query: string, variables?: Record<string, any>, requireAuth = false, retryCount = 0): Promise<T> {
   // Rate limiter: wait before request is sent (using unified rateLimiter from cache.ts)
   await rateLimiter.checkLimit();
 
@@ -230,11 +230,12 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
     method: "POST",
     headers,
     body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!res.ok) {
     // 429 -> Rate Limit! Backoff + Retry
-    if (res.status === 429) {
+    if (res.status === 429 && retryCount < 1) {
       const retryAfter = res.headers.get("Retry-After");
       const retrySec = retryAfter ? parseInt(retryAfter) : undefined;
       rateLimiter.handle429(retrySec);
@@ -245,7 +246,7 @@ async function gql<T = any>(query: string, variables?: Record<string, any>, requ
 
       // Retry once after backoff
       await rateLimiter.checkLimit();
-      return gql<T>(query, variables, requireAuth);
+      return gql<T>(query, variables, requireAuth, retryCount + 1);
     }
     // 401/403 -> invalidate local token cache so UI reacts correctly
     if (res.status === 401 || res.status === 403) {

@@ -80,6 +80,8 @@
     "preloadNotFound": "プリロードが見つかりません。Electronを確認してください..."
   },
   "dashboard": {
+    "loadTimeout": "2分以内にダッシュボードを読み込めませんでした。接続を確認して再試行してください。",
+    "viewerUnavailable": "AniListプロフィールを読み込めませんでした。もう一度ログインしてください。",
     "welcome": "おかえり、{{name}}",
     "loadingDream": "DreamEngineを読み込み中...",
     "currentlyWatching": "現在視聴中",

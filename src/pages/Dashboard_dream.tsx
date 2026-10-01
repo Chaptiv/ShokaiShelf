@@ -417,38 +417,48 @@ export default function DashboardDream({
   }, []);
 
   useEffect(() => {
+    let active = true;
+    const timeout = window.setTimeout(() => {
+      if (!active) return;
+      active = false;
+      setLoadError(t('dashboard.loadTimeout'));
+      setIsLoading(false);
+      onLoadingChange?.(false);
+    }, 120_000);
+
     async function init() {
-      const viewer = await viewerCached();
-      if (!viewer) return;
-
-      // Check session cache to prevent re-fetching on navigation
-      const cacheKey = `dashboard_cache_${viewer.id}`;
-      const cached = sessionStorage.getItem(cacheKey);
-      const cacheTime = sessionStorage.getItem(`${cacheKey}_time`);
-
-      if (cached && cacheTime) {
-        const age = Date.now() - parseInt(cacheTime);
-        // Use cache if less than 5 minutes old
-        if (age < 5 * 60 * 1000) {
-          devLog('[Dashboard] Using cached data');
-          try {
-            const cachedData = JSON.parse(cached);
-            setData(cachedData);
-            setIsLoading(false);
-            onLoadingChange?.(false);
-            return;
-          } catch (e) {
-            devWarn('[Dashboard] Cache parse failed:', e);
-            sessionStorage.removeItem(cacheKey);
-            sessionStorage.removeItem(`${cacheKey}_time`);
-          }
-        }
-      }
-
       setIsLoading(true);
       setLoadError(null);
       onLoadingChange?.(true);
       try {
+        const viewer = await viewerCached();
+        if (!active) return;
+        if (!viewer) throw new Error(t('dashboard.viewerUnavailable'));
+
+        // Check session cache to prevent re-fetching on navigation
+        const cacheKey = `dashboard_cache_${viewer.id}`;
+        const cached = sessionStorage.getItem(cacheKey);
+        const cacheTime = sessionStorage.getItem(`${cacheKey}_time`);
+
+        if (cached && cacheTime) {
+          const age = Date.now() - parseInt(cacheTime);
+          // Use cache if less than 5 minutes old
+          if (age < 5 * 60 * 1000) {
+            devLog('[Dashboard] Using cached data');
+            try {
+              const cachedData = JSON.parse(cached);
+              setData(cachedData);
+              setIsLoading(false);
+              onLoadingChange?.(false);
+              return;
+            } catch (e) {
+              devWarn('[Dashboard] Cache parse failed:', e);
+              sessionStorage.removeItem(cacheKey);
+              sessionStorage.removeItem(`${cacheKey}_time`);
+            }
+          }
+        }
+
         // Use Dream Engine instead of V3
         const engine = getDreamEngine() || createDreamEngine();
         const snoozed = loadSnoozedIds();
@@ -457,13 +467,15 @@ export default function DashboardDream({
         const [recs, lists] = await Promise.all([
           engine.recommend(viewer.name, 50),
           userLists(viewer.id).catch((e) => {
-            if (e.code === 'PRIVATE_USER') {
+            if (active && e.code === 'PRIVATE_USER') {
               setIsPrivateAccount(true);
             }
             devWarn("[Dashboard] userLists failed (private account?):", e.message);
             return { lists: [] };
           }),
         ]);
+
+        if (!active) return;
 
         // Load profile insights
         const insights = engine.getProfileInsights();
@@ -500,6 +512,8 @@ export default function DashboardDream({
         // Build Context
         const context = await buildSmartContext(viewer, current, filteredRecs, dailyRec, t);
 
+        if (!active) return;
+
         // Exclude featured anime from grid
         const featuredId = context.featuredAnime?.id;
         const gridRecs = featuredId
@@ -519,15 +533,24 @@ export default function DashboardDream({
           devWarn('[Dashboard] Cache write failed:', cacheErr);
         }
       } catch (e: any) {
+        if (!active) return;
         logError("Dashboard load error:", e);
         const errorMsg = e?.message || 'Unknown error';
         setLoadError(errorMsg);
       } finally {
-        setIsLoading(false);
-        onLoadingChange?.(false);
+        window.clearTimeout(timeout);
+        if (active) {
+          setIsLoading(false);
+          onLoadingChange?.(false);
+        }
       }
     }
-    init();
+    void init();
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      onLoadingChange?.(false);
+    };
   }, []);
 
   // Handle like - show feedback modal for granular reasons

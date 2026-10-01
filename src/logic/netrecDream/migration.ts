@@ -10,6 +10,7 @@ import {
   MigrationResult,
   MigrationOptions,
   STORAGE_KEYS,
+  DEFAULT_BEHAVIORAL_METRICS,
   DEFAULT_DYNAMIC_WEIGHTS,
   DEFAULT_SEMANTIC_RULES,
   DEFAULT_DISCOVERED_CLUSTERS,
@@ -381,7 +382,6 @@ function calculateInitialConfidence(
 // =============================================================================
 
 function getDefaultMetrics() {
-  const { DEFAULT_BEHAVIORAL_METRICS } = require('./dream-types');
   return { ...DEFAULT_BEHAVIORAL_METRICS };
 }
 

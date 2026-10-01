@@ -107,6 +107,8 @@
       "logoutConfirm": "Do you really want to log out completely?\n\nYou will need to log in again afterwards."
     },
     "dashboard": {
+    "loadTimeout": "The dashboard could not load within two minutes. Please check your connection and try again.",
+    "viewerUnavailable": "Your AniList profile could not be loaded. Please sign in again.",
       "title": "Dashboard",
       "subtitle": "Hero Banner & Cards",
       "heroBanner": "Hero Banner",
